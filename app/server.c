@@ -1,11 +1,29 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+void *handle_client(void *args) {
+	int client_fd = *(int *)args;
+	printf("Client connected\n");
+	while (1) {
+		char buffer[1024] = {0};
+		int valread = read(client_fd, buffer, 1024);
+		if (valread == 0) {
+			break;
+		}
+		printf("Received: %s\n", buffer);
+		send(client_fd, "+PONG\r\n", 7, 0);
+		printf("Sent +PONG\n");
+	}
+	close(client_fd);
+	return NULL;
+}
 
 int main() {
 	// Disable output buffering
@@ -57,21 +75,18 @@ int main() {
 			return 1;
 		}
 
-		printf("Client connected\n");
-		while (1) {
-			char buffer[1024] = {0};
-			int valread = read(client_fd, buffer, 1024);
-			if (valread == 0) {
-				break;
-			}
-			printf("Received: %s\n", buffer);
-			send(client_fd, "+PONG\r\n", 7, 0);
-			printf("Sent +PONG\n");
+		pthread_t thread;
+		if (pthread_create(&thread, NULL, handle_client, &client_fd) != 0) {
+			printf("Failed to create thread\n");
+			return 1;
 		}
 
-		close(client_fd);
+		if (pthread_detach(thread) != 0) {
+			printf("Failed to detach thread\n");
+			return 1;
+		}
 	}
-	close(server_fd);
 
+	close(server_fd);
 	return 0;
 }
