@@ -56,7 +56,7 @@ int main() {
 		return 1;
 	}
 	printf("Client connected\n");
-	send(client_fd, "PING\r\n", 6, 0);
+	send(client_fd, "+PING\r\n", 7, 0);
 
 	close(server_fd);
 
