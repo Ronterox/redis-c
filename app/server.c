@@ -12,6 +12,7 @@ int main() {
 	setbuf(stdout, NULL);
 
 	struct sockaddr_in client_addr;
+
 	int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_fd == -1) {
 		printf("Socket creation failed: %s...\n", strerror(errno));
@@ -45,11 +46,17 @@ int main() {
 		return 1;
 	}
 
-	printf("Waiting for a client to connect...\n");
+	printf("Waiting for a client to connect on http://localhost:6379\n");
 	socklen_t client_addr_len = sizeof(client_addr);
 
-	accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+	int client_fd =
+		accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+	if (client_fd == -1) {
+		printf("Accept failed: %s \n", strerror(errno));
+		return 1;
+	}
 	printf("Client connected\n");
+	send(client_fd, "PING\r\n", 6, 0);
 
 	close(server_fd);
 
