@@ -49,26 +49,28 @@ int main() {
 	printf("Waiting for a client to connect on http://localhost:6379\n");
 	socklen_t client_addr_len = sizeof(client_addr);
 
-	int client_fd =
-		accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
-	if (client_fd == -1) {
-		printf("Accept failed: %s \n", strerror(errno));
-		return 1;
-	}
-
-	printf("Client connected\n");
-	while (1) {
-		char buffer[1024] = {0};
-		int valread = read(client_fd, buffer, 1024);
-		if (valread == 0) {
-			break;
+	for (;;) {
+		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
+							   &client_addr_len);
+		if (client_fd == -1) {
+			printf("Accept failed: %s \n", strerror(errno));
+			return 1;
 		}
-		printf("Received: %s\n", buffer);
-		send(client_fd, "+PONG\r\n", 7, 0);
-		printf("Sent +PONG\n");
-	}
 
-	close(client_fd);
+		printf("Client connected\n");
+		while (1) {
+			char buffer[1024] = {0};
+			int valread = read(client_fd, buffer, 1024);
+			if (valread == 0) {
+				break;
+			}
+			printf("Received: %s\n", buffer);
+			send(client_fd, "+PONG\r\n", 7, 0);
+			printf("Sent +PONG\n");
+		}
+
+		close(client_fd);
+	}
 	close(server_fd);
 
 	return 0;
