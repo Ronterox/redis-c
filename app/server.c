@@ -57,6 +57,7 @@ int main() {
 	}
 	printf("Client connected\n");
 	send(client_fd, "+PONG\r\n", 7, 0);
+	printf("Sent +PONG\n");
 
 	close(server_fd);
 
