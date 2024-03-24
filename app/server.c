@@ -22,6 +22,7 @@ void evaluate_command(char *command, int client_fd) {
 		char buffer[1024] = {0};
 		char *echo = strtok(NULL, "\r\n");
 		int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(echo), echo);
+		printf("Echo: %s\n", buffer);
 		send(client_fd, buffer, len, 0);
 	} else {
 		send(client_fd, "-ERR unknown command\r\n", 23, 0);
