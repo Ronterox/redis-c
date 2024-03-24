@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -15,10 +16,17 @@ char *parse_string(char *data) {
 	return strtok(NULL, "\r\n");
 }
 
+char *to_lowercase(char *str) {
+	for (int i = 0; str[i]; i++) {
+		str[i] = tolower((int)str[i]);
+	}
+	return str;
+}
+
 void evaluate_commands(char **commands, int num_args, int client_fd) {
 	fori(i, num_args) {
-		char *command = commands[i];
-		if (strcmp(command, "PING") == 0) {
+		char *command = to_lowercase(commands[i]);
+		if (strcmp(command, "ping") == 0) {
 			send(client_fd, "+PONG\r\n", 7, 0);
 		} else if (strcmp(command, "echo") == 0) {
 			char *echo = commands[i + 1];
