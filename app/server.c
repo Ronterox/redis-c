@@ -15,17 +15,17 @@ char *parse_string(char *data) {
 	return strtok(NULL, "\r\n");
 }
 
-void evaluate_command(char *command, int client_fd) {
-	if (strcmp(command, "ping") == 0) {
-		send(client_fd, "+PONG\r\n", 7, 0);
-	} else if (strcmp(command, "echo") == 0) {
-		char buffer[1024] = {0};
-		char *echo = strtok(NULL, "\r\n");
-		int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(echo), echo);
-		printf("Echo: %s\n", buffer);
-		send(client_fd, buffer, len, 0);
-	} else {
-		send(client_fd, "-ERR unknown command\r\n", 23, 0);
+void evaluate_commands(char **commands, int num_args, int client_fd) {
+	fori(i, num_args) {
+		char *command = commands[i];
+		if (strcmp(command, "PING") == 0) {
+			send(client_fd, "+PONG\r\n", 7, 0);
+		} else if (strcmp(command, "echo") == 0) {
+			char *echo = commands[i + 1];
+			char buffer[1024] = {0};
+			int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(echo), echo);
+			send(client_fd, buffer, len, 0);
+		}
 	}
 }
 
@@ -52,7 +52,7 @@ void *handle_client(void *args) {
 						printf("str: %s\n", commands[i]);
 					}
 				}
-				fori(i, num_args) { evaluate_command(commands[i], client_fd); }
+				evaluate_commands(commands, num_args, client_fd);
 				free(commands);
 				break;
 			}
