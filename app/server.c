@@ -8,6 +8,26 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#define fori(i, n) for (int i = 0; i < n; i++)
+
+char *parse_string(char *data) {
+	int len = atoi(data + 1);
+	return strtok(NULL, "\r\n");
+}
+
+void evaluate_command(char *command, int client_fd) {
+	if (strcmp(command, "ping") == 0) {
+		send(client_fd, "+PONG\r\n", 7, 0);
+	} else if (strcmp(command, "echo") == 0) {
+		char buffer[1024] = {0};
+		char *echo = strtok(NULL, "\r\n");
+		int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(echo), echo);
+		send(client_fd, buffer, len, 0);
+	} else {
+		send(client_fd, "-ERR unknown command\r\n", 23, 0);
+	}
+}
+
 void *handle_client(void *args) {
 	int client_fd = *(int *)args;
 	printf("Client connected\n");
@@ -18,8 +38,25 @@ void *handle_client(void *args) {
 			break;
 		}
 		printf("Received: %s\n", buffer);
-		send(client_fd, "+PONG\r\n", 7, 0);
-		printf("Sent +PONG\n");
+		char *data = strtok(buffer, "\r\n");
+		do {
+			switch (data[0]) {
+			case '*': {
+				int num_args = atoi(data + 1);
+				char **commands = malloc(num_args * sizeof(char *));
+				fori(i, num_args) {
+					data = strtok(NULL, "\r\n");
+					if (data[0] == '$') {
+						commands[i] = parse_string(data);
+						printf("str: %s\n", commands[i]);
+					}
+				}
+				fori(i, num_args) { evaluate_command(commands[i], client_fd); }
+				free(commands);
+				break;
+			}
+			}
+		} while ((data = strtok(NULL, "\r\n")) != NULL);
 	}
 	close(client_fd);
 	return NULL;
