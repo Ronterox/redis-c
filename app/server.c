@@ -118,12 +118,12 @@ void info(int client_fd, char *info) {
 	if is_str_equal (info, "replication") {
 		char *message;
 		if (server.replicaof == NULL) {
-			message = "3*\r\n$11\r\nrole:master\r\n"
+			message = "*3\r\n$11\r\nrole:master\r\n"
 					  "$14\r\nmaster_replid:"
 					  "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"
 					  "$20\r\nmaster_repl_offset:0\r\n";
 		} else {
-			message = "3*\r\n$10\r\nrole:slave\r\n"
+			message = "*3\r\n$10\r\nrole:slave\r\n"
 					  "$14\r\nmaster_replid:"
 					  "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"
 					  "$20\r\nmaster_repl_offset:0\r\n";
