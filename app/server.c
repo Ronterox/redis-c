@@ -189,7 +189,7 @@ int main(int argc, char const *argv[]) {
 
 	struct sockaddr_in serv_addr = {
 		.sin_family = AF_INET,
-		.sin_port = htons(6379),
+		.sin_port = htons(port),
 		.sin_addr = {htonl(INADDR_ANY)},
 	};
 
