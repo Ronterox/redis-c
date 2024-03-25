@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <errno.h>
+#include <getopt.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <pthread.h>
@@ -141,7 +142,7 @@ void *handle_client(void *args) {
 	return NULL;
 }
 
-int main() {
+int main(int argc, char const *argv[]) {
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
@@ -163,6 +164,21 @@ int main() {
 		return 1;
 	}
 
+	int port = 6379;
+	const struct option long_options[] = {
+		{"port", required_argument, NULL, 'p'}};
+
+	int opt;
+	while ((opt = getopt_long(argc, (char *const *)argv, "p:", long_options,
+							  NULL)) != -1) {
+		if (opt == 'p')
+			port = atoi(optarg);
+		else {
+			printf("Usage: %s [--port PORT]\n", argv[0]);
+			return 1;
+		}
+	}
+
 	struct sockaddr_in serv_addr = {
 		.sin_family = AF_INET,
 		.sin_port = htons(6379),
@@ -181,7 +197,7 @@ int main() {
 		return 1;
 	}
 
-	printf("Waiting for a client to connect on http://localhost:6379\n");
+	printf("Waiting for a client to connect on http://localhost:%d\n", port);
 	socklen_t client_addr_len = sizeof(client_addr);
 
 	for (;;) {
