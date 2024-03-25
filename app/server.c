@@ -158,7 +158,7 @@ int main(int argc, char const *argv[]) {
 
 	int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_fd == -1) {
-		printf("Socket creation failed: %s...\n", strerror(errno));
+		perror("Socket creation failed");
 		return 1;
 	}
 
@@ -168,15 +168,14 @@ int main(int argc, char const *argv[]) {
 	int reuse = 1;
 	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
 		0) {
-		printf("SO_REUSEADDR failed: %s \n", strerror(errno));
+		perror("SO_REUSEADDR failed");
 		return 1;
 	}
 
-	int port = 6379;
 	const struct option long_options[] = {
 		{"port", required_argument, NULL, 'p'}};
 
-	int opt;
+	int opt, port = 6379;
 	while ((opt = getopt_long(argc, (char *const *)argv, "p:", long_options,
 							  NULL)) != -1) {
 		if (opt == 'p')
@@ -195,13 +194,13 @@ int main(int argc, char const *argv[]) {
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
 		0) {
-		printf("Bind failed: %s \n", strerror(errno));
+		perror("Bind failed");
 		return 1;
 	}
 
 	int connection_backlog = 5;
 	if (listen(server_fd, connection_backlog) != 0) {
-		printf("Listen failed: %s \n", strerror(errno));
+		perror("Listen failed");
 		return 1;
 	}
 
@@ -212,18 +211,18 @@ int main(int argc, char const *argv[]) {
 		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
 							   &client_addr_len);
 		if (client_fd == -1) {
-			printf("Accept failed: %s \n", strerror(errno));
+			perror("Accept failed");
 			return 1;
 		}
 
 		pthread_t thread;
 		if (pthread_create(&thread, NULL, handle_client, &client_fd) != 0) {
-			printf("Failed to create thread\n");
+			perror("pthread_create");
 			return 1;
 		}
 
 		if (pthread_detach(thread) != 0) {
-			printf("Failed to detach thread\n");
+			perror("pthread_detach");
 			return 1;
 		}
 	}
