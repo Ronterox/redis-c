@@ -112,14 +112,15 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 
 void *handle_client(void *args) {
 	int client_fd = *(int *)args;
-
 	printf("Client connected\n");
-	char buffer[1024] = {0};
 	while (1) {
+
+		char buffer[1024] = {0};
 		int valread = read(client_fd, buffer, 1024);
 		if (valread == 0) {
 			break;
 		}
+
 		char *data = strtok(buffer, "\r\n");
 		do {
 			if (data[0] == '*') {
