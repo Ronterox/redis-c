@@ -184,14 +184,19 @@ int main(int argc, char const *argv[]) {
 	}
 
 	const struct option long_options[] = {
-		{"port", required_argument, NULL, 'p'}};
+		{"port", required_argument, NULL, 'p'},
+		{"replicaof", required_argument, NULL, 'r'},
+	};
 
 	int opt, port = 6379;
-	while ((opt = getopt_long(argc, (char *const *)argv, "p:", long_options,
+	char *role = "master";
+	while ((opt = getopt_long(argc, (char *const *)argv, "p:r", long_options,
 							  NULL)) != -1) {
 		if (opt == 'p')
 			port = atoi(optarg);
-		else {
+		else if (opt == 'r') {
+			role = "slave";
+		} else {
 			printf("Usage: %s [--port PORT]\n", argv[0]);
 			return 1;
 		}
