@@ -17,6 +17,7 @@
 typedef struct {
 	char *key;
 	char *value;
+	time_t ttl;
 } KeyValue;
 
 KeyValue key_values[KEYS_SIZE];
@@ -42,21 +43,56 @@ char *to_lowercase(char *str) {
 	return str;
 }
 
-void set_key_value(char *key, char *value) {
+char *get_key_value(char *key) {
 	int index = get_key_index(key);
+	return index == -1 ? NULL : key_values[index].value;
+}
+
+void echo(int client_fd, char *echo) {
+	if (echo == NULL) {
+		send(client_fd, "-Missing argument\r\n", 6, 0);
+		return;
+	}
+	char buffer[1024] = {0};
+	int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(echo), echo);
+	send(client_fd, buffer, len, 0);
+}
+
+void set(int client_fd, char *key, char *value, char *ttl) {
+	if (key == NULL || value == NULL) {
+		send(client_fd, "-Missing arguments\r\n", 6, 0);
+		return;
+	}
+	int index = get_key_index(key);
+	time_t key_ttl = ttl == NULL ? 0 : atoi(ttl) + time(NULL) * 1000;
 	if (index == -1) {
 		key_values[key_values_size].key = strdup(key);
 		key_values[key_values_size].value = strdup(value);
+		key_values[key_values_size].ttl = key_ttl;
 		key_values_size++;
 	} else {
 		free(key_values[index].value);
 		key_values[index].value = strdup(value);
+		key_values[index].ttl = key_ttl;
 	}
+	send(client_fd, "+OK\r\n", 5, 0);
 }
 
-char *get_key_value(char *key) {
+void get(int client_fd, char *key) {
+	if (key == NULL) {
+		send(client_fd, "-Missing key argument\r\n", 6, 0);
+		return;
+	}
 	int index = get_key_index(key);
-	return index == -1 ? NULL : key_values[index].value;
+	char *value = key_values[index].value;
+	time_t ttl = key_values[index].ttl;
+	if (index == -1 || (ttl != 0 && time(NULL) * 1000 > ttl)) {
+		send(client_fd, "$-1\r\n", 5, 0);
+	} else {
+		char buffer[1024] = {0};
+		int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(value), value);
+		send(client_fd, buffer, len, 0);
+	}
 }
 
 void evaluate_commands(char **commands, int num_args, int client_fd) {
@@ -65,60 +101,40 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 		if is_str_equal (command, "ping") {
 			send(client_fd, "+PONG\r\n", 7, 0);
 		} else if is_str_equal (command, "echo") {
-			char *echo = commands[i + 1];
-			char buffer[1024] = {0};
-			int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(echo), echo);
-			send(client_fd, buffer, len, 0);
+			echo(client_fd, commands[i + 1]);
 		} else if is_str_equal (command, "set") {
-			char *key = commands[i + 1];
-			char *value = commands[i + 2];
-			set_key_value(key, value);
-			send(client_fd, "+OK\r\n", 5, 0);
+			set(client_fd, commands[i + 1], commands[i + 2], commands[i + 4]);
 		} else if is_str_equal (command, "get") {
-			char *key = commands[i + 1];
-			char *value = get_key_value(key);
-			if (value == NULL) {
-				send(client_fd, "$-1\r\n", 5, 0);
-			} else {
-				char buffer[1024] = {0};
-				int len =
-					sprintf(buffer, "$%lu\r\n%s\r\n", strlen(value), value);
-				send(client_fd, buffer, len, 0);
-			}
+			get(client_fd, commands[i + 1]);
 		}
 	}
 }
 
 void *handle_client(void *args) {
 	int client_fd = *(int *)args;
+
 	printf("Client connected\n");
-	while (1) {
-		char buffer[1024] = {0};
-		int valread = read(client_fd, buffer, 1024);
-		if (valread == 0) {
-			break;
-		}
-		// printf("Received: %s\n", buffer);
-		char *data = strtok(buffer, "\r\n");
-		do {
-			switch (data[0]) {
-			case '*': {
-				int num_args = atoi(data + 1);
-				char **commands = malloc(num_args * sizeof(char *));
-				fori(i, num_args) {
-					data = strtok(NULL, "\r\n");
-					if (data[0] == '$') {
-						commands[i] = parse_string(data);
-						printf("str: %s\n", commands[i]);
-					}
-				}
-				evaluate_commands(commands, num_args, client_fd);
-				free(commands);
-				break;
-			}
-			}
-		} while ((data = strtok(NULL, "\r\n")) != NULL);
+	char buffer[1024] = {0};
+	int valread = read(client_fd, buffer, 1024);
+	if (valread == 0) {
+		return NULL;
 	}
+
+	char *data = strtok(buffer, "\r\n");
+	if (data[0] == '*') {
+		int num_args = atoi(data + 1);
+		char **commands = malloc(num_args * sizeof(char *));
+		fori(i, num_args) {
+			data = strtok(NULL, "\r\n");
+			if (data[0] == '$') {
+				commands[i] = parse_string(data);
+				printf("str: %s\n", commands[i]);
+			}
+		}
+		evaluate_commands(commands, num_args, client_fd);
+		free(commands);
+	}
+
 	close(client_fd);
 	return NULL;
 }
