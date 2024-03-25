@@ -1,5 +1,4 @@
 #include <ctype.h>
-#include <errno.h>
 #include <getopt.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -22,8 +21,15 @@ typedef struct {
 	time_t ttl;
 } KeyValue;
 
+typedef struct Server {
+	int port;
+	struct Server *replicaof;
+} Server;
+
 KeyValue key_values[KEYS_SIZE];
 int key_values_size = 0;
+
+Server server = {6379};
 
 time_t currentMillis() {
 	struct timeval tp;
@@ -110,7 +116,11 @@ void info(int client_fd, char *info) {
 		return;
 	}
 	if is_str_equal (info, "replication") {
-		send(client_fd, "$11\r\nrole:master\r\n", 18, 0);
+		if (server.replicaof == NULL) {
+			send(client_fd, "$11\r\nrole:master\r\n", 18, 0);
+		} else {
+			send(client_fd, "$10\r\nrole:slave\r\n", 17, 0);
+		}
 	} else {
 		send(client_fd, "-Unknown argument\r\n", 6, 0);
 	}
@@ -168,8 +178,6 @@ int main(int argc, char const *argv[]) {
 	// Disable output buffering
 	setbuf(stdout, NULL);
 
-	struct sockaddr_in client_addr;
-
 	int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_fd == -1) {
 		perror("Socket creation failed");
@@ -188,23 +196,23 @@ int main(int argc, char const *argv[]) {
 		{"replicaof", required_argument, NULL, 'r'},
 	};
 
-	int opt, port = 6379;
-	char *role = "master";
+	int opt;
 	while ((opt = getopt_long(argc, (char *const *)argv, "p:r", long_options,
 							  NULL)) != -1) {
 		if (opt == 'p')
-			port = atoi(optarg);
+			server.port = atoi(optarg);
 		else if (opt == 'r') {
-			role = "slave";
+			server.replicaof = malloc(sizeof(Server));
 		} else {
-			printf("Usage: %s [--port PORT]\n", argv[0]);
+			printf("Usage: %s [--port PORT] [--replicaof HOST PORT]\n",
+				   argv[0]);
 			return 1;
 		}
 	}
 
 	struct sockaddr_in serv_addr = {
 		.sin_family = AF_INET,
-		.sin_port = htons(port),
+		.sin_port = htons(server.port),
 		.sin_addr = {htonl(INADDR_ANY)},
 	};
 
@@ -220,9 +228,10 @@ int main(int argc, char const *argv[]) {
 		return 1;
 	}
 
-	printf("Waiting for a client to connect on http://localhost:%d\n", port);
+	printf("Waiting for a client to connect on http://localhost:%d\n",
+		   server.port);
+	struct sockaddr_in client_addr;
 	socklen_t client_addr_len = sizeof(client_addr);
-
 	for (;;) {
 		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr,
 							   &client_addr_len);
