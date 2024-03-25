@@ -115,28 +115,28 @@ void *handle_client(void *args) {
 
 	printf("Client connected\n");
 	char buffer[1024] = {0};
-	int valread = read(client_fd, buffer, 1024);
-	if (valread == 0) {
-		return NULL;
-	}
-
-	char *data = strtok(buffer, "\r\n");
-	do {
-		if (data[0] == '*') {
-			int num_args = atoi(data + 1);
-			char **commands = malloc(num_args * sizeof(char *));
-			fori(i, num_args) {
-				data = strtok(NULL, "\r\n");
-				if (data[0] == '$') {
-					commands[i] = parse_string(data);
-					printf("str: %s\n", commands[i]);
-				}
-			}
-			evaluate_commands(commands, num_args, client_fd);
-			free(commands);
+	while (1) {
+		int valread = read(client_fd, buffer, 1024);
+		if (valread == 0) {
+			break;
 		}
-	} while ((data = strtok(NULL, "\r\n")) != NULL);
-
+		char *data = strtok(buffer, "\r\n");
+		do {
+			if (data[0] == '*') {
+				int num_args = atoi(data + 1);
+				char **commands = malloc(num_args * sizeof(char *));
+				fori(i, num_args) {
+					data = strtok(NULL, "\r\n");
+					if (data[0] == '$') {
+						commands[i] = parse_string(data);
+						printf("str: %s\n", commands[i]);
+					}
+				}
+				evaluate_commands(commands, num_args, client_fd);
+				free(commands);
+			}
+		} while ((data = strtok(NULL, "\r\n")) != NULL);
+	}
 	close(client_fd);
 	return NULL;
 }
