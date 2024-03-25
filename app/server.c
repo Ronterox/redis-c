@@ -116,11 +116,19 @@ void info(int client_fd, char *info) {
 		return;
 	}
 	if is_str_equal (info, "replication") {
+		char *message;
 		if (server.replicaof == NULL) {
-			send(client_fd, "$11\r\nrole:master\r\n", 18, 0);
+			message = "$11\r\nrole:master\r\n"
+					  "$14\r\nmaster_replid:"
+					  "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"
+					  "$20\r\nmaster_repl_offset:0\r\n";
 		} else {
-			send(client_fd, "$10\r\nrole:slave\r\n", 17, 0);
+			message = "$10\r\nrole:slave\r\n"
+					  "$14\r\nmaster_replid:"
+					  "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"
+					  "$20\r\nmaster_repl_offset:0\r\n";
 		}
+		send(client_fd, message, strlen(message), 0);
 	} else {
 		send(client_fd, "-Unknown argument\r\n", 6, 0);
 	}
