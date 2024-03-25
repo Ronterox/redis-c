@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #define KEYS_SIZE 100
@@ -23,6 +24,13 @@ typedef struct {
 
 KeyValue key_values[KEYS_SIZE];
 int key_values_size = 0;
+
+time_t currentMillis() {
+	struct timeval tp;
+
+	gettimeofday(&tp, NULL);
+	return tp.tv_sec * 1000 + tp.tv_usec / 1000;
+}
 
 int get_key_index(char *key) {
 	fori(i, key_values_size) {
@@ -65,7 +73,7 @@ void set(int client_fd, char *key, char *value, char *ttl) {
 		return;
 	}
 	int index = get_key_index(key);
-	time_t key_ttl = ttl == NULL ? 0 : atoi(ttl) + time(NULL) * 1000;
+	time_t key_ttl = ttl == NULL ? 0 : atoi(ttl) + currentMillis();
 	if (index == -1) {
 		key_values[key_values_size].key = strdup(key);
 		key_values[key_values_size].value = strdup(value);
@@ -87,7 +95,7 @@ void get(int client_fd, char *key) {
 	int index = get_key_index(key);
 	char *value = key_values[index].value;
 	time_t ttl = key_values[index].ttl;
-	if (index == -1 || ttl != 0 && time(NULL) * 1000 >= ttl) {
+	if (index == -1 || ttl != 0 && currentMillis() > ttl) {
 		send(client_fd, "$-1\r\n", 5, 0);
 	} else {
 		char buffer[1024] = {0};
