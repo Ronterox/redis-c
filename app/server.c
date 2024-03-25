@@ -118,15 +118,13 @@ void info(int client_fd, char *info) {
 	if is_str_equal (info, "replication") {
 		char *message;
 		if (server.replicaof == NULL) {
-			message =
-				"$91\r\nrole:master\r\n"
-				"master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"
-				"master_repl_offset:0\r\n";
+			message = "$87\r\nrole:master\n"
+					  "master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\n"
+					  "master_repl_offset:0\r\n";
 		} else {
-			message =
-				"$90\r\nrole:slave\r\n"
-				"master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"
-				"master_repl_offset:0\r\n";
+			message = "$86\r\nrole:slave\n"
+					  "master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\n"
+					  "master_repl_offset:0\r\n";
 		}
 		send(client_fd, message, strlen(message), 0);
 	} else {
