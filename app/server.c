@@ -129,8 +129,6 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 			get(client_fd, commands[i + 1]);
 		} else if is_str_equal (command, "info") {
 			info(client_fd, commands[i + 1]);
-		} else {
-			send(client_fd, "-Unknown command\r\n", 16, 0);
 		}
 	}
 }
