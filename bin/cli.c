@@ -47,8 +47,9 @@ int main(int argc, char const *argv[]) {
 		break;
 	case '$':
 		strtok(buffer, "\r\n");
-		char *data = strtok(NULL, "\r\n");
-		printf("%s\n", data);
+		char *data;
+		while ((data = strtok(NULL, "\r\n")) != NULL)
+			printf("%s\n", data);
 		break;
 	case '*':
 		printf("Array response\n");
