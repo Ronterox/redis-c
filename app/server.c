@@ -121,19 +121,21 @@ void *handle_client(void *args) {
 	}
 
 	char *data = strtok(buffer, "\r\n");
-	if (data[0] == '*') {
-		int num_args = atoi(data + 1);
-		char **commands = malloc(num_args * sizeof(char *));
-		fori(i, num_args) {
-			data = strtok(NULL, "\r\n");
-			if (data[0] == '$') {
-				commands[i] = parse_string(data);
-				printf("str: %s\n", commands[i]);
+	do {
+		if (data[0] == '*') {
+			int num_args = atoi(data + 1);
+			char **commands = malloc(num_args * sizeof(char *));
+			fori(i, num_args) {
+				data = strtok(NULL, "\r\n");
+				if (data[0] == '$') {
+					commands[i] = parse_string(data);
+					printf("str: %s\n", commands[i]);
+				}
 			}
+			evaluate_commands(commands, num_args, client_fd);
+			free(commands);
 		}
-		evaluate_commands(commands, num_args, client_fd);
-		free(commands);
-	}
+	} while ((data = strtok(NULL, "\r\n")) != NULL);
 
 	close(client_fd);
 	return NULL;
