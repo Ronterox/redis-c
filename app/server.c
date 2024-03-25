@@ -104,6 +104,18 @@ void get(int client_fd, char *key) {
 	}
 }
 
+void info(int client_fd, char *info) {
+	if (info == NULL) {
+		send(client_fd, "-Missing argument\r\n", 6, 0);
+		return;
+	}
+	if is_str_equal (info, "replication") {
+		send(client_fd, "$11\r\nrole:master\r\n", 18, 0);
+	} else {
+		send(client_fd, "-Unknown argument\r\n", 6, 0);
+	}
+}
+
 void evaluate_commands(char **commands, int num_args, int client_fd) {
 	fori(i, num_args) {
 		char *command = to_lowercase(commands[i]);
@@ -115,6 +127,10 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 			set(client_fd, commands[i + 1], commands[i + 2], commands[i + 4]);
 		} else if is_str_equal (command, "get") {
 			get(client_fd, commands[i + 1]);
+		} else if is_str_equal (command, "info") {
+			info(client_fd, commands[i + 1]);
+		} else {
+			send(client_fd, "-Unknown command\r\n", 16, 0);
 		}
 	}
 }

@@ -1,12 +1,12 @@
 .DELETE_ON_ERROR:
 
-server.out:
+server.out: clean
 	gcc app/*.c -o server.out
 
 run-server: server.out
 	./server.out
 
-cli.out:
+cli.out: clean
 	gcc bin/*.c -o cli.out
 
 .PHONY: clean
