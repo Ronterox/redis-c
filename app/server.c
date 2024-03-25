@@ -86,7 +86,7 @@ void get(int client_fd, char *key) {
 	int index = get_key_index(key);
 	char *value = key_values[index].value;
 	time_t ttl = key_values[index].ttl;
-	if (index == -1 || (ttl != 0 && time(NULL) * 1000 > ttl)) {
+	if (index == -1 || ttl != 0 && time(NULL) * 1000 >= ttl) {
 		send(client_fd, "$-1\r\n", 5, 0);
 	} else {
 		char buffer[1024] = {0};
