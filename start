@@ -1,0 +1,7 @@
+#!/bin/bash
+
+tmux-send-cmd "stop server" '/etc/init.d/redis-server stop && exit'
+tmux-send-cmd "redis-cli" 'redis-cli ping'
+
+nvim .
+

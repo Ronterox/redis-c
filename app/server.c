@@ -9,7 +9,26 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#define KEYS_SIZE 100
+
 #define fori(i, n) for (int i = 0; i < n; i++)
+#define is_str_equal(str1, str2) (strcmp(str1, str2) == 0)
+
+typedef struct {
+	char *key;
+	char *value;
+} KeyValue;
+
+KeyValue key_values[KEYS_SIZE];
+int key_values_size = 0;
+
+int get_key_index(char *key) {
+	fori(i, key_values_size) {
+		if (is_str_equal(key_values[i].key, key))
+			return i;
+	}
+	return -1;
+}
 
 char *parse_string(char *data) {
 	int len = atoi(data + 1);
@@ -23,16 +42,49 @@ char *to_lowercase(char *str) {
 	return str;
 }
 
+void set_key_value(char *key, char *value) {
+	int index = get_key_index(key);
+	if (index == -1) {
+		key_values[key_values_size].key = strdup(key);
+		key_values[key_values_size].value = strdup(value);
+		key_values_size++;
+	} else {
+		free(key_values[index].value);
+		key_values[index].value = strdup(value);
+	}
+}
+
+char *get_key_value(char *key) {
+	int index = get_key_index(key);
+	return index == -1 ? NULL : key_values[index].value;
+}
+
 void evaluate_commands(char **commands, int num_args, int client_fd) {
 	fori(i, num_args) {
 		char *command = to_lowercase(commands[i]);
-		if (strcmp(command, "ping") == 0) {
+		if is_str_equal (command, "ping") {
 			send(client_fd, "+PONG\r\n", 7, 0);
-		} else if (strcmp(command, "echo") == 0) {
+		} else if is_str_equal (command, "echo") {
 			char *echo = commands[i + 1];
 			char buffer[1024] = {0};
 			int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(echo), echo);
 			send(client_fd, buffer, len, 0);
+		} else if is_str_equal (command, "set") {
+			char *key = commands[i + 1];
+			char *value = commands[i + 2];
+			set_key_value(key, value);
+			send(client_fd, "+OK\r\n", 5, 0);
+		} else if is_str_equal (command, "get") {
+			char *key = commands[i + 1];
+			char *value = get_key_value(key);
+			if (value == NULL) {
+				send(client_fd, "$-1\r\n", 5, 0);
+			} else {
+				char buffer[1024] = {0};
+				int len =
+					sprintf(buffer, "$%lu\r\n%s\r\n", strlen(value), value);
+				send(client_fd, buffer, len, 0);
+			}
 		}
 	}
 }
@@ -46,7 +98,7 @@ void *handle_client(void *args) {
 		if (valread == 0) {
 			break;
 		}
-		printf("Received: %s\n", buffer);
+		// printf("Received: %s\n", buffer);
 		char *data = strtok(buffer, "\r\n");
 		do {
 			switch (data[0]) {
@@ -83,8 +135,9 @@ int main() {
 		return 1;
 	}
 
-	// Since the tester restarts your program quite often, setting SO_REUSEADDR
-	// ensures that we don't run into 'Address already in use' errors
+	// Since the tester restarts your program quite often, setting
+	// SO_REUSEADDR ensures that we don't run into 'Address already in use'
+	// errors
 	int reuse = 1;
 	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
 		0) {
@@ -131,6 +184,11 @@ int main() {
 			printf("Failed to detach thread\n");
 			return 1;
 		}
+	}
+
+	fori(i, key_values_size) {
+		free(key_values[i].key);
+		free(key_values[i].value);
 	}
 
 	close(server_fd);
