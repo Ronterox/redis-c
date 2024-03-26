@@ -253,7 +253,9 @@ int main(int argc, char const *argv[]) {
 
 		printf("Connected to replica on http://%s:%d\n", server.replicaof->host,
 			   server.replicaof->port);
-		send(replica_fd, "*1\r\n$4\r\nping\r\n", 13, 0);
+
+		send(replica_fd, "*1\r\n$4\r\nping\r\n", 14, 0);
+
 		free(server.replicaof);
 		close(replica_fd);
 	}
