@@ -23,13 +23,14 @@ typedef struct {
 
 typedef struct Server {
 	int port;
+	char *host;
 	struct Server *replicaof;
 } Server;
 
 KeyValue key_values[KEYS_SIZE];
 int key_values_size = 0;
 
-Server server = {6379};
+Server server = {6379, "localhost", NULL};
 
 time_t currentMillis() {
 	struct timeval tp;
@@ -208,7 +209,10 @@ int main(int argc, char const *argv[]) {
 		if (opt == 'p')
 			server.port = atoi(optarg);
 		else if (opt == 'r') {
+			// Should check for errors here
 			server.replicaof = malloc(sizeof(Server));
+			server.replicaof->host = optarg;
+			server.replicaof->port = atoi(argv[optind]);
 		} else {
 			printf("Usage: %s [--port PORT] [--replicaof HOST PORT]\n",
 				   argv[0]);
@@ -216,11 +220,43 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
+	if (server.replicaof != NULL && server.replicaof->port == server.port) {
+		fprintf(stderr,
+				"Error: replicaof port cannot be the same as server port\n");
+		return 1;
+	}
+
 	struct sockaddr_in serv_addr = {
 		.sin_family = AF_INET,
 		.sin_port = htons(server.port),
 		.sin_addr = {htonl(INADDR_ANY)},
 	};
+
+	if (server.replicaof != NULL) {
+		struct sockaddr_in repl_addr = {
+			.sin_family = AF_INET,
+			.sin_port = htons(server.replicaof->port),
+			.sin_addr = {htonl(INADDR_ANY)},
+		};
+
+		int replica_fd = socket(AF_INET, SOCK_STREAM, 0);
+		if (replica_fd == -1) {
+			perror("Socket creation failed");
+			return 1;
+		}
+
+		if (connect(replica_fd, (struct sockaddr *)&repl_addr,
+					sizeof(repl_addr)) != 0) {
+			perror("Connection to replica failed");
+			return 1;
+		}
+
+		printf("Connected to replica on http://%s:%d\n", server.replicaof->host,
+			   server.replicaof->port);
+		send(replica_fd, "*1\r\n$4\r\nping\r\n", 13, 0);
+		free(server.replicaof);
+		close(replica_fd);
+	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
 		0) {
@@ -262,7 +298,6 @@ int main(int argc, char const *argv[]) {
 		free(key_values[i].key);
 		free(key_values[i].value);
 	}
-
 	close(server_fd);
 	return 0;
 }

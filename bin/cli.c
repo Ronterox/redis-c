@@ -12,10 +12,11 @@ int main(int argc, char const *argv[]) {
 		return 1;
 	}
 
-	struct sockaddr_in server_addr;
-	server_addr.sin_family = AF_INET;
-	server_addr.sin_addr.s_addr = INADDR_ANY;
-	server_addr.sin_port = htons(6379);
+	struct sockaddr_in server_addr = {
+		.sin_family = AF_INET,
+		.sin_port = htons(6379),
+		.sin_addr = {htonl(INADDR_ANY)},
+	};
 
 	if (connect(sock_fd, (struct sockaddr *)&server_addr,
 				sizeof(server_addr)) != 0) {
