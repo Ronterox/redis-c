@@ -148,8 +148,6 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "info") {
 			info(client_fd, commands[i + 1]);
 		} else if is_str_equal (command, "replconf") {
-			printf("REPLCONF\n");
-			printf("arg1: %s\n", commands[i + 1]);
 			send(client_fd, "+OK\r\n", 5, 0);
 		}
 	}
@@ -272,25 +270,31 @@ int main(int argc, char const *argv[]) {
 			return 1;
 		}
 
-		printf("Connected to replica on http://%s:%d\n", server.replicaof->host,
+		printf("Connected to master on http://%s:%d\n", server.replicaof->host,
 			   server.replicaof->port);
 
 		int result;
 		result = send_repl_hs("*1\r\n$4\r\nping\r\n", "+PONG\r\n");
-		if (result != 0)
+		if (result != 0) {
+			perror("Error during PING");
 			return 1;
+		}
 
 		result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n$14\r\n"
 							  "listening-port\r\n$4\r\n6380\r\n",
 							  "+OK\r\n");
-		if (result != 0)
+		if (result != 0) {
+			perror("Error during REPLCONF listening-port\n");
 			return 1;
+		}
 
-		result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n$4\r\n"
-							  "ncapa\r\n$6\r\nnpsync2\r\n",
+		result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n"
+							  "$4\r\ncapa\r\n$6\r\npsync2\r\n",
 							  "+OK\r\n");
-		if (result != 0)
+		if (result != 0) {
+			perror("Error during REPLCONF ncapa\n");
 			return 1;
+		}
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
