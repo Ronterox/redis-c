@@ -184,11 +184,10 @@ void *handle_client(void *args) {
 	return NULL;
 }
 
-int send_replica_handshake(char *message, int message_len,
-						   char *expected_response) {
-	send(server.replicaof->fd, message, message_len, 0);
+int send_replica_handshake(char *message, char *expected_response) {
+	send(server.replicaof->fd, message, strlen(message), 0);
 
-	char buffer[32];
+	char buffer[32] = {0};
 	if (read(server.replicaof->fd, buffer, sizeof(buffer)) == -1 ||
 		!is_str_equal(buffer, expected_response)) {
 		perror("Error during replication handshake");
@@ -271,20 +270,19 @@ int main(int argc, char const *argv[]) {
 			   server.replicaof->port);
 
 		int result;
-		result =
-			send_replica_handshake("*1\r\n$4\r\nping\r\n", 14, "+PONG\r\n");
+		result = send_replica_handshake("*1\r\n$4\r\nping\r\n", "+PONG\r\n");
 		if (result != 0)
 			return 1;
 
 		result = send_replica_handshake("*3\r\n$8\r\nREPLCONF\r\n$14\r\n"
 										"listening-port\r\n$4\r\n6380\r\n",
-										32 - 8 + 32 - 6, "+OK\r\n");
+										"+OK\r\n");
 		if (result != 0)
 			return 1;
 
 		result = send_replica_handshake("*3\r\n$8\r\nREPLCONF\r\n$4\r\n"
 										"ncapa\r\n$6\r\nnpsync2\r\n",
-										31 - 8 + 26 - 6, "+OK\r\n");
+										"+OK\r\n");
 		if (result != 0)
 			return 1;
 	}
