@@ -188,7 +188,7 @@ int send_replica_handshake(char *message, char *expected_response) {
 	send(server.replicaof->fd, message, strlen(message), 0);
 
 	char buffer[32] = {0};
-	if (read(server.replicaof->fd, buffer, sizeof(buffer)) == -1 ||
+	if (recv(server.replicaof->fd, buffer, sizeof(buffer), 0) == -1 ||
 		!is_str_equal(buffer, expected_response)) {
 		perror("Error during replication handshake");
 		return 1;
