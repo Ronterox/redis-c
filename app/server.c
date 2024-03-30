@@ -180,20 +180,20 @@ void *handle_client(void *args) {
 			}
 		} while ((data = strtok(NULL, "\r\n")) != NULL);
 	}
-	close(client_fd);
+	// close(client_fd);
 	return NULL;
 }
 
-int send_replica_handshake(char *message, char *expected_response) {
+int send_repl_hs(char *message, char *expected_response) {
 	if (send(server.replicaof->fd, message, strlen(message), 0) == -1) {
-		perror("Error during replication handshake");
+		perror("Error during SENDING replication handshake");
 		return 1;
 	}
 
 	char buffer[32] = {0};
 	if (recv(server.replicaof->fd, buffer, sizeof(buffer), 0) == -1 ||
 		!is_str_equal(buffer, expected_response)) {
-		perror("Error during replication handshake");
+		perror("Error during RECEIVING replication handshake");
 		return 1;
 	}
 	return 0;
@@ -273,19 +273,19 @@ int main(int argc, char const *argv[]) {
 			   server.replicaof->port);
 
 		int result;
-		result = send_replica_handshake("*1\r\n$4\r\nping\r\n", "+PONG\r\n");
+		result = send_repl_hs("*1\r\n$4\r\nping\r\n", "+PONG\r\n");
 		if (result != 0)
 			return 1;
 
-		result = send_replica_handshake("*3\r\n$8\r\nREPLCONF\r\n$14\r\n"
-										"listening-port\r\n$4\r\n6380\r\n",
-										"+OK\r\n");
+		result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n$14\r\n"
+							  "listening-port\r\n$4\r\n6380\r\n",
+							  "+OK\r\n");
 		if (result != 0)
 			return 1;
 
-		result = send_replica_handshake("*3\r\n$8\r\nREPLCONF\r\n$4\r\n"
-										"ncapa\r\n$6\r\nnpsync2\r\n",
-										"+OK\r\n");
+		result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n$4\r\n"
+							  "ncapa\r\n$6\r\nnpsync2\r\n",
+							  "+OK\r\n");
 		if (result != 0)
 			return 1;
 	}
