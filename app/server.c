@@ -155,7 +155,7 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "psync") {
 			send(client_fd,
 				 "+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n",
-				 53, 0);
+				 56, 0);
 		}
 	}
 }
