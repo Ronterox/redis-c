@@ -194,6 +194,8 @@ int send_repl_hs(char *message, char *expected_response) {
 	if (recv(server.replicaof->fd, buffer, sizeof(buffer), 0) == -1 ||
 		!is_str_equal(buffer, expected_response)) {
 		perror("Error during RECEIVING replication handshake");
+		printf("Expected: %s\n", expected_response);
+		printf("Received: %s\n", buffer);
 		return 1;
 	}
 	return 0;
