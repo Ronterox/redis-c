@@ -148,6 +148,8 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "info") {
 			info(client_fd, commands[i + 1]);
 		} else if is_str_equal (command, "replconf") {
+			printf("REPLCONF\n");
+			printf("arg1: %s\n", commands[i + 1]);
 			send(client_fd, "+OK\r\n", 5, 0);
 		}
 	}
@@ -159,9 +161,8 @@ void *handle_client(void *args) {
 	while (1) {
 		char buffer[1024] = {0};
 		int valread = read(client_fd, buffer, 1024);
-		if (valread == 0) {
+		if (valread == 0)
 			break;
-		}
 
 		char *data = strtok(buffer, "\r\n");
 		do {
@@ -226,9 +227,9 @@ int main(int argc, char const *argv[]) {
 	int opt;
 	while ((opt = getopt_long(argc, (char *const *)argv, "p:r", long_options,
 							  NULL)) != -1) {
-		if (opt == 'p')
+		if (opt == 'p') {
 			server.port = atoi(optarg);
-		else if (opt == 'r') {
+		} else if (opt == 'r') {
 			// Should check for errors here
 			server.replicaof = malloc(sizeof(Server));
 			server.replicaof->host = optarg;
@@ -290,9 +291,6 @@ int main(int argc, char const *argv[]) {
 							  "+OK\r\n");
 		if (result != 0)
 			return 1;
-
-		close(server.replicaof->fd);
-		free(server.replicaof);
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
@@ -331,10 +329,10 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	// if (server.replicaof != NULL) {
-	// 	close(server.replicaof->fd);
-	// 	free(server.replicaof);
-	// }
+	if (server.replicaof != NULL) {
+		close(server.replicaof->fd);
+		free(server.replicaof);
+	}
 
 	fori(i, key_values_size) {
 		free(key_values[i].key);
