@@ -138,17 +138,17 @@ void info(int client_fd, char *info) {
 
 void evaluate_commands(char **commands, int num_args, int client_fd) {
 	fori(i, num_args) {
-		char *command = to_lowercase(commands[i]);
+		char *command = to_lowercase(commands[i]), key = commands[i + 1];
 		if is_str_equal (command, "ping") {
 			send(client_fd, "+PONG\r\n", 7, 0);
 		} else if is_str_equal (command, "echo") {
-			echo(client_fd, commands[i + 1]);
+			echo(client_fd, key);
 		} else if is_str_equal (command, "set") {
-			set(client_fd, commands[i + 1], commands[i + 2], commands[i + 4]);
+			set(client_fd, key, commands[i + 2], commands[i + 4]);
 		} else if is_str_equal (command, "get") {
-			get(client_fd, commands[i + 1]);
+			get(client_fd, key);
 		} else if is_str_equal (command, "info") {
-			info(client_fd, commands[i + 1]);
+			info(client_fd, key);
 		} else if is_str_equal (command, "replconf") {
 			send(client_fd, "+OK\r\n", 5, 0);
 		} else if is_str_equal (command, "psync") {
