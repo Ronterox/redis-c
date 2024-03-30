@@ -185,7 +185,10 @@ void *handle_client(void *args) {
 }
 
 int send_replica_handshake(char *message, char *expected_response) {
-	send(server.replicaof->fd, message, strlen(message), 0);
+	if (send(server.replicaof->fd, message, strlen(message), 0) == -1) {
+		perror("Error during replication handshake");
+		return 1;
+	}
 
 	char buffer[32] = {0};
 	if (recv(server.replicaof->fd, buffer, sizeof(buffer), 0) == -1 ||
