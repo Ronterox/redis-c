@@ -23,6 +23,7 @@ typedef struct {
 
 typedef struct Server {
 	int port;
+	int fd;
 	char *host;
 	struct Server *replicaof;
 } Server;
@@ -30,7 +31,7 @@ typedef struct Server {
 KeyValue key_values[KEYS_SIZE];
 int key_values_size = 0;
 
-Server server = {6379, "localhost", NULL};
+Server server = {.port = 6379, .host = "localhost"};
 
 time_t currentMillis() {
 	struct timeval tp;
@@ -146,6 +147,8 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 			get(client_fd, commands[i + 1]);
 		} else if is_str_equal (command, "info") {
 			info(client_fd, commands[i + 1]);
+		} else if is_str_equal (command, "replconf") {
+			send(client_fd, "+OK\r\n", 5, 0);
 		}
 	}
 }
@@ -179,6 +182,19 @@ void *handle_client(void *args) {
 	}
 	close(client_fd);
 	return NULL;
+}
+
+int send_replica_handshake(char *message, int message_len,
+						   char *expected_response) {
+	send(server.replicaof->fd, message, message_len, 0);
+
+	char buffer[32];
+	if (read(server.replicaof->fd, buffer, sizeof(buffer)) == -1 ||
+		!is_str_equal(buffer, expected_response)) {
+		perror("Error during replication handshake");
+		return 1;
+	}
+	return 0;
 }
 
 int main(int argc, char const *argv[]) {
@@ -239,13 +255,13 @@ int main(int argc, char const *argv[]) {
 			.sin_addr = {htonl(INADDR_ANY)},
 		};
 
-		int replica_fd = socket(AF_INET, SOCK_STREAM, 0);
-		if (replica_fd == -1) {
+		server.replicaof->fd = socket(AF_INET, SOCK_STREAM, 0);
+		if (server.replicaof->fd == -1) {
 			perror("Socket creation failed");
 			return 1;
 		}
 
-		if (connect(replica_fd, (struct sockaddr *)&repl_addr,
+		if (connect(server.replicaof->fd, (struct sockaddr *)&repl_addr,
 					sizeof(repl_addr)) != 0) {
 			perror("Connection to replica failed");
 			return 1;
@@ -254,10 +270,23 @@ int main(int argc, char const *argv[]) {
 		printf("Connected to replica on http://%s:%d\n", server.replicaof->host,
 			   server.replicaof->port);
 
-		send(replica_fd, "*1\r\n$4\r\nping\r\n", 14, 0);
+		int result;
+		result =
+			send_replica_handshake("*1\r\n$4\r\nping\r\n", 14, "+PONG\r\n");
+		if (result != 0)
+			return 1;
 
-		free(server.replicaof);
-		close(replica_fd);
+		result = send_replica_handshake("*3\r\n$8\r\nREPLCONF\r\n$14\r\n"
+										"listening-port\r\n$4\r\n6380\r\n",
+										32 - 8 + 32 - 6, "+OK\r\n");
+		if (result != 0)
+			return 1;
+
+		result = send_replica_handshake("*3\r\n$8\r\nREPLCONF\r\n$4\r\n"
+										"ncapa\r\n$6\r\nnpsync2\r\n",
+										31 - 8 + 26 - 6, "+OK\r\n");
+		if (result != 0)
+			return 1;
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
@@ -296,10 +325,17 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
+	if (server.replicaof != NULL) {
+		free(server.replicaof);
+		close(server.replicaof->fd);
+	}
+
 	fori(i, key_values_size) {
 		free(key_values[i].key);
 		free(key_values[i].value);
 	}
+
 	close(server_fd);
+
 	return 0;
 }
