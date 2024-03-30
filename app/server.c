@@ -11,6 +11,8 @@
 #include <unistd.h>
 
 #define KEYS_SIZE 100
+#define BUFFER_SIZE 1024
+#define SMALL_BUFFER_SIZE 32
 
 #define fori(i, n) for (int i = 0; i < n; i++)
 #define is_str_equal(str1, str2) (strcmp(str1, str2) == 0)
@@ -70,7 +72,7 @@ void echo(int client_fd, char *echo) {
 		send(client_fd, "-Missing argument\r\n", 6, 0);
 		return;
 	}
-	char buffer[1024] = {0};
+	char buffer[BUFFER_SIZE] = {0};
 	int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(echo), echo);
 	send(client_fd, buffer, len, 0);
 }
@@ -106,7 +108,7 @@ void get(int client_fd, char *key) {
 	if (index == -1 || ttl != 0 && currentMillis() > ttl) {
 		send(client_fd, "$-1\r\n", 5, 0);
 	} else {
-		char buffer[1024] = {0};
+		char buffer[BUFFER_SIZE] = {0};
 		int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(value), value);
 		send(client_fd, buffer, len, 0);
 	}
@@ -149,6 +151,8 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 			info(client_fd, commands[i + 1]);
 		} else if is_str_equal (command, "replconf") {
 			send(client_fd, "+OK\r\n", 5, 0);
+		} else if is_str_equal (command, "psync") {
+			send(client_fd, "+FULLRESYNC <REPL_ID> 0\r\n", 27, 0);
 		}
 	}
 }
@@ -157,8 +161,8 @@ void *handle_client(void *args) {
 	int client_fd = *(int *)args;
 	printf("Client connected\n");
 	while (1) {
-		char buffer[1024] = {0};
-		int valread = read(client_fd, buffer, 1024);
+		char buffer[BUFFER_SIZE] = {0};
+		int valread = read(client_fd, buffer, BUFFER_SIZE);
 		if (valread == 0)
 			break;
 
@@ -183,15 +187,18 @@ void *handle_client(void *args) {
 	return NULL;
 }
 
-int send_repl_hs(char *message, char *expected_response) {
+int send_repl_hs(char *message, char *expected_response, int match_length) {
+	if (match_length <= 0)
+		match_length = SMALL_BUFFER_SIZE;
+
 	if (send(server.replicaof->fd, message, strlen(message), 0) == -1) {
 		perror("Error during SENDING replication handshake");
 		return 1;
 	}
 
-	char buffer[32] = {0};
-	if (recv(server.replicaof->fd, buffer, sizeof(buffer), 0) == -1 ||
-		!is_str_equal(buffer, expected_response)) {
+	char buffer[SMALL_BUFFER_SIZE] = {0};
+	if (recv(server.replicaof->fd, buffer, SMALL_BUFFER_SIZE, 0) == -1 ||
+		strncmp(buffer, expected_response, match_length) != 0) {
 		perror("Error during RECEIVING replication handshake");
 		printf("Expected: %s\n", expected_response);
 		printf("Received: %s\n", buffer);
@@ -274,7 +281,7 @@ int main(int argc, char const *argv[]) {
 			   server.replicaof->port);
 
 		int result;
-		result = send_repl_hs("*1\r\n$4\r\nping\r\n", "+PONG\r\n");
+		result = send_repl_hs("*1\r\n$4\r\nping\r\n", "+PONG\r\n", 0);
 		if (result != 0) {
 			perror("Error during PING");
 			return 1;
@@ -282,7 +289,7 @@ int main(int argc, char const *argv[]) {
 
 		result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n$14\r\n"
 							  "listening-port\r\n$4\r\n6380\r\n",
-							  "+OK\r\n");
+							  "+OK\r\n", 0);
 		if (result != 0) {
 			perror("Error during REPLCONF listening-port\n");
 			return 1;
@@ -290,9 +297,16 @@ int main(int argc, char const *argv[]) {
 
 		result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n"
 							  "$4\r\ncapa\r\n$6\r\npsync2\r\n",
-							  "+OK\r\n");
+							  "+OK\r\n", 0);
 		if (result != 0) {
 			perror("Error during REPLCONF ncapa\n");
+			return 1;
+		}
+
+		result = send_repl_hs("*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n",
+							  "+FULLRESYNC", 11);
+		if (result != 0) {
+			perror("Error during PSYNC\n");
 			return 1;
 		}
 	}
