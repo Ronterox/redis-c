@@ -180,7 +180,7 @@ void *handle_client(void *args) {
 			}
 		} while ((data = strtok(NULL, "\r\n")) != NULL);
 	}
-	// close(client_fd);
+	close(client_fd);
 	return NULL;
 }
 
@@ -288,6 +288,9 @@ int main(int argc, char const *argv[]) {
 							  "+OK\r\n");
 		if (result != 0)
 			return 1;
+
+		free(server.replicaof);
+		close(server.replicaof->fd);
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
@@ -326,10 +329,10 @@ int main(int argc, char const *argv[]) {
 		}
 	}
 
-	if (server.replicaof != NULL) {
-		free(server.replicaof);
-		close(server.replicaof->fd);
-	}
+	// if (server.replicaof != NULL) {
+	// 	free(server.replicaof);
+	// 	close(server.replicaof->fd);
+	// }
 
 	fori(i, key_values_size) {
 		free(key_values[i].key);
