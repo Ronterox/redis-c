@@ -160,7 +160,10 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 				"524544495330303131fa0972656469732d76657205372e322e30fa0a726564"
 				"69732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656d"
 				"c2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2";
-			send(client_fd, empty_hex_rdb, strlen(empty_hex_rdb), 0);
+			char buffer[BUFFER_SIZE] = {0};
+			int len = sprintf(buffer, "$%lu\r\n%s", strlen(empty_hex_rdb),
+							  empty_hex_rdb);
+			send(client_fd, buffer, len, 0);
 		}
 	}
 }
