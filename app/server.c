@@ -97,6 +97,9 @@ void set(int client_fd, char *key, char *value, char *ttl) {
 		key_values[index].value = strdup(value);
 		key_values[index].ttl = key_ttl;
 	}
+
+	if (server.replicaof != NULL && server.replicaof->fd == client_fd)
+		return;
 	send(client_fd, "+OK\r\n", 5, 0);
 }
 
@@ -347,9 +350,6 @@ int main(int argc, char const *argv[]) {
 			perror("Error during PSYNC\n");
 			return 1;
 		}
-
-		close(server.replicaof->fd);
-		free(server.replicaof);
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
@@ -386,6 +386,11 @@ int main(int argc, char const *argv[]) {
 			perror("pthread_detach");
 			return 1;
 		}
+	}
+
+	if (server.replicaof != NULL) {
+		close(server.replicaof->fd);
+		free(server.replicaof);
 	}
 
 	fori(i, key_values_size) {
