@@ -156,6 +156,11 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 			send(client_fd,
 				 "+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n",
 				 56, 0);
+			char empty_hex_rdb[] =
+				"524544495330303131fa0972656469732d76657205372e322e30fa0a726564"
+				"69732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656d"
+				"c2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2";
+			send(client_fd, empty_hex_rdb, strlen(empty_hex_rdb), 0);
 		}
 	}
 }
