@@ -212,8 +212,9 @@ void *handle_client(void *args) {
 				int res = evaluate_commands(commands, num_args, client_fd);
 				if (res == 2) {
 					fori(i, replicas_size) {
-						if (replicas_fd[i] != client_fd)
+						if (replicas_fd[i] != client_fd) {
 							send(replicas_fd[i], buffer, valread, 0);
+						}
 					}
 				}
 				free(commands);
