@@ -197,7 +197,7 @@ void *handle_client(void *args) {
 		if (valread == 0)
 			break;
 
-		char *data = strtok(buffer, "\r\n");
+		char *data = strtok(strdup(buffer), "\r\n");
 		do {
 			if (data[0] == '*') {
 				int num_args = atoi(data + 1);
