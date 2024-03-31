@@ -33,6 +33,9 @@ typedef struct Server {
 KeyValue key_values[KEYS_SIZE];
 int key_values_size = 0;
 
+int replicas_fd[10] = {0};
+int replicas_size = 0;
+
 Server server = {.port = 6379, .host = "localhost"};
 
 time_t currentMillis() {
@@ -146,6 +149,8 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 			echo(client_fd, key);
 		} else if is_str_equal (command, "set") {
 			set(client_fd, key, commands[i + 2], commands[i + 4]);
+			fori(j, replicas_size)
+				send(replicas_fd[j], commands[i], strlen(commands[i]), 0);
 		} else if is_str_equal (command, "get") {
 			get(client_fd, key);
 		} else if is_str_equal (command, "info") {
@@ -156,14 +161,13 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 			send(client_fd,
 				 "+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n",
 				 56, 0);
+
 			char empty_hex_rdb[] =
 				"524544495330303131fa0972656469732d76657205372e322e30fa0a726564"
 				"69732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656d"
 				"c2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2";
 
-			// hex to binary
-
-			char binary_rdb[1000];
+			char binary_rdb[BUFFER_SIZE];
 			int i = 0, j = 0;
 			while (empty_hex_rdb[i]) {
 				char byte[3] = {empty_hex_rdb[i], empty_hex_rdb[i + 1], '\0'};
@@ -172,9 +176,11 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 			}
 
 			char buffer[BUFFER_SIZE] = {0};
-			int len =
+			size_t len =
 				sprintf(buffer, "$%lu\r\n%s", strlen(binary_rdb), binary_rdb);
 			send(client_fd, buffer, len, 0);
+
+			replicas_fd[replicas_size++] = client_fd;
 		}
 	}
 }
@@ -331,6 +337,9 @@ int main(int argc, char const *argv[]) {
 			perror("Error during PSYNC\n");
 			return 1;
 		}
+
+		close(server.replicaof->fd);
+		free(server.replicaof);
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
@@ -367,11 +376,6 @@ int main(int argc, char const *argv[]) {
 			perror("pthread_detach");
 			return 1;
 		}
-	}
-
-	if (server.replicaof != NULL) {
-		close(server.replicaof->fd);
-		free(server.replicaof);
 	}
 
 	fori(i, key_values_size) {
