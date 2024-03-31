@@ -139,7 +139,9 @@ void info(int client_fd, char *info) {
 	}
 }
 
-void evaluate_commands(char **commands, int num_args, int client_fd) {
+// Returns -> 0: success, 1: don't close fd, 2: resend to replicas
+int evaluate_commands(char **commands, int num_args, int client_fd) {
+	int action = 0;
 	fori(i, num_args) {
 		char *command = to_lowercase(commands[i]);
 		char *key = commands[i + 1];
@@ -148,9 +150,8 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "echo") {
 			echo(client_fd, key);
 		} else if is_str_equal (command, "set") {
+			action = 2;
 			set(client_fd, key, commands[i + 2], commands[i + 4]);
-			fori(j, replicas_size)
-				send(replicas_fd[j], commands[i], strlen(commands[i]), 0);
 		} else if is_str_equal (command, "get") {
 			get(client_fd, key);
 		} else if is_str_equal (command, "info") {
@@ -158,6 +159,7 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "replconf") {
 			send(client_fd, "+OK\r\n", 5, 0);
 		} else if is_str_equal (command, "psync") {
+			action = 1;
 			send(client_fd,
 				 "+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n",
 				 56, 0);
@@ -183,6 +185,7 @@ void evaluate_commands(char **commands, int num_args, int client_fd) {
 			replicas_fd[replicas_size++] = client_fd;
 		}
 	}
+	return action;
 }
 
 void *handle_client(void *args) {
@@ -206,7 +209,13 @@ void *handle_client(void *args) {
 						printf("str: %s\n", commands[i]);
 					}
 				}
-				evaluate_commands(commands, num_args, client_fd);
+				int res = evaluate_commands(commands, num_args, client_fd);
+				if (res == 2) {
+					fori(i, replicas_size) {
+						if (replicas_fd[i] != client_fd)
+							send(replicas_fd[i], buffer, valread, 0);
+					}
+				}
 				free(commands);
 			}
 		} while ((data = strtok(NULL, "\r\n")) != NULL);
