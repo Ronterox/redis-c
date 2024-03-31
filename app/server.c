@@ -192,7 +192,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 }
 
 void *handle_client(void *args) {
-	int client_fd = *(int *)args;
+	int client_fd = *(int *)args, res;
 	printf("Client connected\n");
 	while (1) {
 		char buffer[BUFFER_SIZE] = {0};
@@ -212,7 +212,7 @@ void *handle_client(void *args) {
 						printf("str: %s\n", commands[i]);
 					}
 				}
-				int res = evaluate_commands(commands, num_args, client_fd);
+				res = evaluate_commands(commands, num_args, client_fd);
 				if (res == 2) {
 					fori(i, replicas_size) {
 						if (replicas_fd[i] != client_fd) {
@@ -224,7 +224,8 @@ void *handle_client(void *args) {
 			}
 		} while ((data = strtok(NULL, "\r\n")) != NULL);
 	}
-	close(client_fd);
+	if (res != 1)
+		close(client_fd);
 	return NULL;
 }
 
