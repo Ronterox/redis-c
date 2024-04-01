@@ -171,10 +171,10 @@ void psync(int client_fd) {
 }
 
 void ping(int client_fd) {
-	if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
-		printf("Replica pinged\n");
-		return;
-	}
+	// if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
+	// 	printf("Replica pinged\n");
+	// 	return;
+	// }
 	send(client_fd, "+PONG\r\n", 7, 0);
 }
 
