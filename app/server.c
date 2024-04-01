@@ -189,7 +189,6 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 			info(client_fd, key);
 		} else if is_str_equal (command, "replconf") {
 			if is_str_equal (key, "getack") {
-				printf("REPLCONF %s is ACK\n", key);
 				send(client_fd,
 					 "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n", 34, 0);
 			} else {
@@ -262,9 +261,9 @@ int send_repl_hs(char *message, char *expected_response, int match_length) {
 	return 0;
 }
 
-int client_to_thread(int *client_fd) {
+int send_to_thread(void *func, void *args) {
 	pthread_t thread;
-	if (pthread_create(&thread, NULL, handle_client, client_fd) != 0) {
+	if (pthread_create(&thread, NULL, func, args) != 0) {
 		perror("pthread_create");
 		return 1;
 	}
@@ -274,6 +273,78 @@ int client_to_thread(int *client_fd) {
 		return 1;
 	}
 	return 0;
+}
+
+int client_to_thread(int *client_fd) {
+	return send_to_thread(handle_client, client_fd);
+}
+
+void *replicate() {
+	struct sockaddr_in repl_addr = {
+		.sin_family = AF_INET,
+		.sin_port = htons(server.replicaof->port),
+		.sin_addr = {htonl(INADDR_ANY)},
+	};
+
+	server.replicaof->fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (server.replicaof->fd == -1) {
+		perror("Socket creation failed");
+		return NULL;
+	}
+
+	if (connect(server.replicaof->fd, (struct sockaddr *)&repl_addr,
+				sizeof(repl_addr)) != 0) {
+		perror("Connection to replica failed");
+		return NULL;
+	}
+
+	printf("Connected to master on http://%s:%d\n", server.replicaof->host,
+		   server.replicaof->port);
+
+	int result;
+	result = send_repl_hs("*1\r\n$4\r\nping\r\n", "+PONG\r\n", 0);
+	if (result != 0) {
+		perror("Error during PING");
+		return NULL;
+	}
+
+	result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n$14\r\n"
+						  "listening-port\r\n$4\r\n6380\r\n",
+						  "+OK\r\n", 0);
+	if (result != 0) {
+		perror("Error during REPLCONF listening-port\n");
+		return NULL;
+	}
+
+	result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n"
+						  "$4\r\ncapa\r\n$6\r\npsync2\r\n",
+						  "+OK\r\n", 0);
+	if (result != 0) {
+		perror("Error during REPLCONF ncapa\n");
+		return NULL;
+	}
+
+	result = send_repl_hs("*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n",
+						  "+FULLRESYNC", 11);
+	if (result != 0) {
+		perror("Error during PSYNC\n");
+		return NULL;
+	}
+
+	char buffer[BUFFER_SIZE] = {0};
+	if (recv(server.replicaof->fd, buffer, BUFFER_SIZE, 0) == -1) {
+		perror("Failed to receive data");
+		return NULL;
+	}
+	printf("Received RDB.\n");
+
+	result = client_to_thread(&server.replicaof->fd);
+	if (result != 0) {
+		perror("Error during client_to_thread of replica\n");
+		return NULL;
+	}
+	printf("Replication handshake successful\n");
+	return NULL;
 }
 
 int main(int argc, char const *argv[]) {
@@ -328,70 +399,10 @@ int main(int argc, char const *argv[]) {
 	};
 
 	if (server.replicaof != NULL) {
-		struct sockaddr_in repl_addr = {
-			.sin_family = AF_INET,
-			.sin_port = htons(server.replicaof->port),
-			.sin_addr = {htonl(INADDR_ANY)},
-		};
-
-		server.replicaof->fd = socket(AF_INET, SOCK_STREAM, 0);
-		if (server.replicaof->fd == -1) {
-			perror("Socket creation failed");
+		if (send_to_thread(replicate, NULL) != 0) {
+			perror("Error during replicate\n");
 			return 1;
 		}
-
-		if (connect(server.replicaof->fd, (struct sockaddr *)&repl_addr,
-					sizeof(repl_addr)) != 0) {
-			perror("Connection to replica failed");
-			return 1;
-		}
-
-		printf("Connected to master on http://%s:%d\n", server.replicaof->host,
-			   server.replicaof->port);
-
-		int result;
-		result = send_repl_hs("*1\r\n$4\r\nping\r\n", "+PONG\r\n", 0);
-		if (result != 0) {
-			perror("Error during PING");
-			return 1;
-		}
-
-		result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n$14\r\n"
-							  "listening-port\r\n$4\r\n6380\r\n",
-							  "+OK\r\n", 0);
-		if (result != 0) {
-			perror("Error during REPLCONF listening-port\n");
-			return 1;
-		}
-
-		result = send_repl_hs("*3\r\n$8\r\nREPLCONF\r\n"
-							  "$4\r\ncapa\r\n$6\r\npsync2\r\n",
-							  "+OK\r\n", 0);
-		if (result != 0) {
-			perror("Error during REPLCONF ncapa\n");
-			return 1;
-		}
-
-		result = send_repl_hs("*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n",
-							  "+FULLRESYNC", 11);
-		if (result != 0) {
-			perror("Error during PSYNC\n");
-			return 1;
-		}
-
-		char buffer[BUFFER_SIZE] = {0};
-		if (recv(server.replicaof->fd, buffer, BUFFER_SIZE, 0) == -1) {
-			perror("Failed to receive data");
-			return 1;
-		}
-		printf("Received RDB.\n");
-
-		result = client_to_thread(&server.replicaof->fd);
-		if (result != 0) {
-			perror("Error during client_to_thread of replica\n");
-			return 1;
-		}
-		printf("Replication handshake successful\n");
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=

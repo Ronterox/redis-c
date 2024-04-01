@@ -57,8 +57,8 @@ int main(int argc, char const *argv[]) {
 		strtok(buffer, "\r\n");
 		for (int i = 0; i < len; i++) {
 			strtok(NULL, "\r\n");
-			while ((data = strtok(NULL, "\r\n")) != NULL)
-				printf("\"%s\"\n", data);
+			data = strtok(NULL, "\r\n");
+			printf("\"%s\"\n", data);
 		}
 		break;
 	default:
