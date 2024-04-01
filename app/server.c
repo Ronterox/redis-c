@@ -175,7 +175,9 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		char *command = to_lowercase(commands[i]);
 		char *key = commands[i + 1];
 		if is_str_equal (command, "ping") {
-			send(client_fd, "+PONG\r\n", 7, 0);
+			if (server.replicaof == NULL || server.replicaof->fd != client_fd) {
+				send(client_fd, "+PONG\r\n", 7, 0);
+			}
 		} else if is_str_equal (command, "echo") {
 			echo(client_fd, key);
 		} else if is_str_equal (command, "set") {
