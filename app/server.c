@@ -180,7 +180,6 @@ void ping(int client_fd) {
 
 void replconf(int client_fd, char *key) {
 	if is_str_equal (key, "getack") {
-		printf("Sending ACK %d\n", ack);
 		char buffer[BUFFER_SIZE] = {0};
 		int digits = floor(log10(ack + 1)) + 1;
 		int len = sprintf(buffer,
