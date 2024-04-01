@@ -173,7 +173,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	int action = 0;
 	fori(i, num_args) {
 		char *command = to_lowercase(commands[i]);
-		char *key = commands[i + 1];
+		char *key = to_lowercase(commands[i + 1]);
 		if is_str_equal (command, "ping") {
 			send(client_fd, "+PONG\r\n", 7, 0);
 		} else if is_str_equal (command, "echo") {
