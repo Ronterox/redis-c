@@ -243,27 +243,30 @@ void *handle_client(void *args) {
 		printf("Received: %s\n", buffer);
 		char *data = strtok(strdup(buffer), "\r\n");
 
-		if (data[0] == '*') {
-			int num_args = atoi(data + 1);
-			char **commands = malloc(num_args * sizeof(char *));
-			fori(i, num_args) {
-				data = strtok(NULL, "\r\n");
-				if (data[0] == '$') {
-					commands[i] = parse_string(data);
-					printf("str: %s\n", commands[i]);
-				}
-			}
-			int res = evaluate_commands(commands, num_args, client_fd);
-			if (res == 1) {
-				fori(i, replicas_size) {
-					if (replicas_fd[i] != client_fd) {
-						printf("Sending to replica %d\n", replicas_fd[i]);
-						send(replicas_fd[i], buffer, strlen(buffer), 0);
+		do {
+
+			if (data[0] == '*') {
+				int num_args = atoi(data + 1);
+				char **commands = malloc(num_args * sizeof(char *));
+				fori(i, num_args) {
+					data = strtok(NULL, "\r\n");
+					if (data[0] == '$') {
+						commands[i] = parse_string(data);
+						printf("str: %s\n", commands[i]);
 					}
 				}
+				int res = evaluate_commands(commands, num_args, client_fd);
+				if (res == 1) {
+					fori(i, replicas_size) {
+						if (replicas_fd[i] != client_fd) {
+							printf("Sending to replica %d\n", replicas_fd[i]);
+							send(replicas_fd[i], buffer, strlen(buffer), 0);
+						}
+					}
+				}
+				free(commands);
 			}
-			free(commands);
-		}
+		} while ((data = strtok(NULL, "\r\n")) != NULL);
 	}
 
 	printf("Client disconnected %d\n", client_fd);
