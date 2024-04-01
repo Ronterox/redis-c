@@ -100,10 +100,10 @@ void set(int client_fd, char *key, char *value, char *ttl) {
 		key_values[index].ttl = key_ttl;
 	}
 
-	if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
-		printf("Replicated SET %s %s\n", key, value);
-		return;
-	}
+	// if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
+	// 	printf("Replicated SET %s %s\n", key, value);
+	// 	return;
+	// }
 
 	send(client_fd, "+OK\r\n", 5, 0);
 }
