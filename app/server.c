@@ -188,7 +188,12 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "info") {
 			info(client_fd, key);
 		} else if is_str_equal (command, "replconf") {
-			send(client_fd, "+OK\r\n", 5, 0);
+			if is_str_equal (key, "getack") {
+				send(client_fd,
+					 "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n", 34, 0);
+			} else {
+				send(client_fd, "+OK\r\n", 5, 0);
+			}
 		} else if is_str_equal (command, "psync") {
 			psync(client_fd);
 			replicas_fd[replicas_size++] = client_fd;
@@ -378,7 +383,7 @@ int main(int argc, char const *argv[]) {
 			perror("Failed to receive data");
 			return 1;
 		}
-		printf("Received RDB: %s\n", buffer);
+		printf("Received RDB.\n");
 
 		result = client_to_thread(&server.replicaof->fd);
 		if (result != 0) {
