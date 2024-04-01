@@ -1,6 +1,6 @@
-#include <cmath>
 #include <ctype.h>
 #include <getopt.h>
+#include <math.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <pthread.h>
@@ -27,7 +27,6 @@ typedef struct {
 typedef struct Server {
 	int port;
 	int fd;
-	int ack;
 	char *host;
 	struct Server *replicaof;
 } Server;
@@ -38,6 +37,7 @@ int key_values_size = 0;
 int replicas_fd[10] = {0};
 int replicas_size = 0;
 
+int ack = 0;
 Server server = {.port = 6379, .host = "localhost"};
 
 time_t currentMillis() {
@@ -179,10 +179,10 @@ void ping(int client_fd) {
 void replconf(int client_fd, char *key) {
 	if is_str_equal (key, "getack") {
 		char buffer[BUFFER_SIZE] = {0};
-		int digits = floor(log10(abs(server.ack))) + 1;
+		int digits = floor(log10(abs(ack))) + 1;
 		int len = sprintf(
 			buffer, "*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$%d\r\n%d\r\n",
-			digits, server.ack);
+			digits, ack);
 		send(client_fd, buffer, len, 0);
 		return;
 	}
@@ -198,7 +198,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		char *key = commands[i + 1];
 		if is_str_equal (command, "ping") {
 			ping(client_fd);
-			server.ack += 14;
+			ack += 14;
 		} else if is_str_equal (command, "echo") {
 			echo(client_fd, key);
 		} else if is_str_equal (command, "set") {
@@ -207,10 +207,10 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 			char *ttl = i + 4 < num_args ? commands[i + 4] : NULL;
 			set(client_fd, key, value, ttl);
 			// *n\r\n$3\r\nset\r\n$n\r\nkey\r\n$n\r\nvalue\r\n
-			server.ack += 25 + strlen(key) + strlen(value);
+			ack += 25 + strlen(key) + strlen(value);
 			// $2\r\npx\r\n$n\r\nttl\r\n
 			if (ttl != NULL)
-				server.ack += 14 + strlen(ttl);
+				ack += 14 + strlen(ttl);
 		} else if is_str_equal (command, "get") {
 			get(client_fd, key);
 		} else if is_str_equal (command, "info") {
@@ -219,7 +219,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "replconf") {
 			key = to_lowercase(key);
 			replconf(client_fd, key);
-			server.ack += 37;
+			ack += 37;
 		} else if is_str_equal (command, "psync") {
 			psync(client_fd);
 			replicas_fd[replicas_size++] = client_fd;
