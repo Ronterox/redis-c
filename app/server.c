@@ -12,7 +12,7 @@
 
 #define KEYS_SIZE 100
 #define BUFFER_SIZE 1024
-#define SMALL_BUFFER_SIZE 32
+#define SMALL_BUFFER_SIZE 128
 
 #define fori(i, n) for (int i = 0; i < n; i++)
 #define is_str_equal(str1, str2) (strcmp(str1, str2) == 0)
@@ -98,10 +98,10 @@ void set(int client_fd, char *key, char *value, char *ttl) {
 		key_values[index].ttl = key_ttl;
 	}
 
-	// if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
-	// 	printf("Replicated SET %s %s\n", key, value);
-	// 	return;
-	// }
+	if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
+		printf("Replicated SET %s %s\n", key, value);
+		return;
+	}
 
 	send(client_fd, "+OK\r\n", 5, 0);
 }
@@ -372,6 +372,13 @@ int main(int argc, char const *argv[]) {
 			perror("Error during PSYNC\n");
 			return 1;
 		}
+
+		char buffer[BUFFER_SIZE] = {0};
+		if (recv(server.replicaof->fd, buffer, BUFFER_SIZE, 0) == -1) {
+			perror("Failed to receive data");
+			return 1;
+		}
+		printf("Received RDB: %s\n", buffer);
 
 		result = client_to_thread(&server.replicaof->fd);
 		if (result != 0) {
