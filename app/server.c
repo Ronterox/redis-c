@@ -190,6 +190,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "psync") {
 			action = 1;
 			psync(client_fd);
+			replicas_fd[replicas_size++] = client_fd;
 		}
 	}
 	return action;
