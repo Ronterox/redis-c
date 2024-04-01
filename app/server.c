@@ -186,6 +186,10 @@ void replconf(int client_fd, char *key) {
 						  "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$%d\r\n%d\r\n",
 						  digits, ack);
 		send(client_fd, buffer, len, 0);
+	}
+
+	if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
+		printf("Replica REPLCONF %s\n", key);
 		return;
 	}
 
@@ -221,7 +225,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "replconf") {
 			key = to_lowercase(key);
 			replconf(client_fd, key);
-			ack += 37;
+			ack += 38;
 		} else if is_str_equal (command, "psync") {
 			psync(client_fd);
 			replicas_fd[replicas_size++] = client_fd;
