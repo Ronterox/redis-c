@@ -40,6 +40,7 @@ int main(int argc, char const *argv[]) {
 		return 1;
 	}
 
+	char *data;
 	switch (buffer[0]) {
 	case '+':
 	case '-':
@@ -48,12 +49,17 @@ int main(int argc, char const *argv[]) {
 		break;
 	case '$':
 		strtok(buffer, "\r\n");
-		char *data;
 		while ((data = strtok(NULL, "\r\n")) != NULL)
 			printf("\"%s\"\n", data);
 		break;
 	case '*':
-		printf("Array response\n");
+		len = buffer[1] - '0';
+		strtok(buffer, "\r\n");
+		for (int i = 0; i < len; i++) {
+			strtok(NULL, "\r\n");
+			while ((data = strtok(NULL, "\r\n")) != NULL)
+				printf("\"%s\"\n", data);
+		}
 		break;
 	default:
 		printf("Unknown response\n");
