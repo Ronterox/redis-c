@@ -363,7 +363,7 @@ void *replicate() {
 	}
 
 	char buffer[BUFFER_SIZE] = {0};
-	if (read(server.replicaof->fd, buffer, BUFFER_SIZE) == -1) {
+	if (read(server.replicaof->fd, buffer, BUFFER_SIZE) <= 0) {
 		perror("Failed to receive data");
 		return NULL;
 	}
