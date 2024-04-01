@@ -112,12 +112,12 @@ void get(int client_fd, char *key) {
 		return;
 	}
 	int index = get_key_index(key);
-	char *value = key_values[index].value;
 	time_t ttl = key_values[index].ttl;
-	if (index == -1 || ttl != 0 && currentMillis() > ttl) {
+	if (index == -1 || ttl > 0 && currentMillis() > ttl) {
 		send(client_fd, "$-1\r\n", 5, 0);
 	} else {
 		char buffer[BUFFER_SIZE] = {0};
+		char *value = key_values[index].value;
 		int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(value), value);
 		send(client_fd, buffer, len, 0);
 	}
