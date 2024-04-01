@@ -179,7 +179,7 @@ void ping(int client_fd) {
 void replconf(int client_fd, char *key) {
 	if is_str_equal (key, "getack") {
 		char buffer[BUFFER_SIZE] = {0};
-		int digits = floor(log10(ack)) + 1;
+		int digits = floor(log10(ack + 1)) + 1;
 		int len = sprintf(
 			buffer, "*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$%d\r\n%d\r\n",
 			digits, ack);
