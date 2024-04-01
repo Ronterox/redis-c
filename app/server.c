@@ -235,10 +235,13 @@ void *handle_client(void *args) {
 	printf("Client connected %d\n", client_fd);
 	while (1) {
 		char buffer[BUFFER_SIZE] = {0};
-		if (read(client_fd, buffer, BUFFER_SIZE) <= 0) {
+		if (recv(client_fd, buffer, BUFFER_SIZE, 0) == -1) {
 			perror("Failed to receive data from client");
 			break;
 		}
+
+		if (buffer[0] == '\0')
+			continue;
 
 		printf("Received: %s\n", buffer);
 		char *data = strtok(strdup(buffer), "\r\n");
