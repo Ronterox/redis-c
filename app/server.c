@@ -188,12 +188,12 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "info") {
 			info(client_fd, key);
 		} else if is_str_equal (command, "replconf") {
-			if is_str_equal (key, "getack") {
-				send(client_fd,
-					 "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n", 34, 0);
-			} else {
-				send(client_fd, "+OK\r\n", 5, 0);
-			}
+			// if is_str_equal (key, "getack") {
+			// 	send(client_fd,
+			// 		 "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n", 34, 0);
+			// } else {
+			send(client_fd, "+OK\r\n", 5, 0);
+			// }
 		} else if is_str_equal (command, "psync") {
 			psync(client_fd);
 			replicas_fd[replicas_size++] = client_fd;
