@@ -235,16 +235,14 @@ void *handle_client(void *args) {
 	printf("Client connected %d\n", client_fd);
 	while (1) {
 		char buffer[BUFFER_SIZE] = {0};
-		if (recv(client_fd, buffer, BUFFER_SIZE, 0) == -1) {
+		if (read(client_fd, buffer, BUFFER_SIZE) <= 0) {
 			perror("Failed to receive data");
 			break;
 		}
 
 		printf("Received: %s\n", buffer);
 		char *data = strtok(strdup(buffer), "\r\n");
-
 		do {
-
 			if (data[0] == '*') {
 				int num_args = atoi(data + 1);
 				char **commands = malloc(num_args * sizeof(char *));
