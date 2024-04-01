@@ -166,7 +166,7 @@ void psync(int client_fd) {
 	send(client_fd, buffer, len, 0);
 }
 
-// Returns -> 0: success, 1: don't close fd, 2: resend to replicas
+// Returns -> 0: success, 1: resend to replicas
 int evaluate_commands(char **commands, int num_args, int client_fd) {
 	int action = 0;
 	fori(i, num_args) {
@@ -177,7 +177,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "echo") {
 			echo(client_fd, key);
 		} else if is_str_equal (command, "set") {
-			action = 2;
+			action = 1;
 			char *value = commands[i + 2];
 			char *ttl = i + 4 < num_args ? commands[i + 4] : NULL;
 			set(client_fd, key, value, ttl);
@@ -188,7 +188,6 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "replconf") {
 			send(client_fd, "+OK\r\n", 5, 0);
 		} else if is_str_equal (command, "psync") {
-			action = 1;
 			psync(client_fd);
 			replicas_fd[replicas_size++] = client_fd;
 		}
@@ -197,12 +196,11 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 }
 
 void *handle_client(void *args) {
-	int client_fd = *(int *)args, res;
-	printf("Client connected\n");
+	int client_fd = *(int *)args;
+	printf("Client connected %d\n", client_fd);
 	while (1) {
 		char buffer[BUFFER_SIZE] = {0};
-		int valread = read(client_fd, buffer, BUFFER_SIZE);
-		if (valread == 0)
+		if (read(client_fd, buffer, BUFFER_SIZE) <= 0)
 			break;
 
 		char *data = strtok(strdup(buffer), "\r\n");
@@ -217,11 +215,12 @@ void *handle_client(void *args) {
 						printf("str: %s\n", commands[i]);
 					}
 				}
-				res = evaluate_commands(commands, num_args, client_fd);
-				if (res == 2) {
+				int res = evaluate_commands(commands, num_args, client_fd);
+				if (res == 1) {
 					fori(i, replicas_size) {
 						if (replicas_fd[i] != client_fd) {
-							send(replicas_fd[i], buffer, valread, 0);
+							printf("Sending to replica %d\n", replicas_fd[i]);
+							send(replicas_fd[i], buffer, BUFFER_SIZE, 0);
 						}
 					}
 				}
@@ -230,9 +229,8 @@ void *handle_client(void *args) {
 		} while ((data = strtok(NULL, "\r\n")) != NULL);
 	}
 
-	if (res != 1)
-		close(client_fd);
-
+	printf("Client disconnected %d\n", client_fd);
+	close(client_fd);
 	return NULL;
 }
 
@@ -251,6 +249,20 @@ int send_repl_hs(char *message, char *expected_response, int match_length) {
 		perror("Error during RECEIVING replication handshake");
 		printf("Expected: %s\n", expected_response);
 		printf("Received: %s\n", buffer);
+		return 1;
+	}
+	return 0;
+}
+
+int client_to_thread(int *client_fd) {
+	pthread_t thread;
+	if (pthread_create(&thread, NULL, handle_client, client_fd) != 0) {
+		perror("pthread_create");
+		return 1;
+	}
+
+	if (pthread_detach(thread) != 0) {
+		perror("pthread_detach");
 		return 1;
 	}
 	return 0;
@@ -358,6 +370,13 @@ int main(int argc, char const *argv[]) {
 			perror("Error during PSYNC\n");
 			return 1;
 		}
+
+		result = client_to_thread(&server.replicaof->fd);
+		if (result != 0) {
+			perror("Error during client_to_thread of replica\n");
+			return 1;
+		}
+		printf("Replication handshake successful\n");
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
@@ -384,14 +403,9 @@ int main(int argc, char const *argv[]) {
 			return 1;
 		}
 
-		pthread_t thread;
-		if (pthread_create(&thread, NULL, handle_client, &client_fd) != 0) {
-			perror("pthread_create");
-			return 1;
-		}
-
-		if (pthread_detach(thread) != 0) {
-			perror("pthread_detach");
+		int result = client_to_thread(&client_fd);
+		if (result != 0) {
+			perror("Error during client_to_thread\n");
 			return 1;
 		}
 	}
