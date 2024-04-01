@@ -235,7 +235,7 @@ void *handle_client(void *args) {
 	printf("Client connected %d\n", client_fd);
 	while (1) {
 		char buffer[BUFFER_SIZE] = {0};
-		if (read(client_fd, buffer, BUFFER_SIZE) <= 0) {
+		if (read(client_fd, buffer, BUFFER_SIZE) == -1) {
 			perror("Failed to receive data");
 			break;
 		}
@@ -363,7 +363,7 @@ void *replicate() {
 	}
 
 	char buffer[BUFFER_SIZE] = {0};
-	if (recv(server.replicaof->fd, buffer, BUFFER_SIZE, 0) == -1) {
+	if (read(server.replicaof->fd, buffer, BUFFER_SIZE) == -1) {
 		perror("Failed to receive data");
 		return NULL;
 	}
