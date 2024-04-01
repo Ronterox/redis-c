@@ -445,7 +445,7 @@ int main(int argc, char const *argv[]) {
 		return 1;
 	}
 
-	int connection_backlog = 10;
+	int connection_backlog = 128;
 	if (listen(server_fd, connection_backlog) != 0) {
 		perror("Listen failed");
 		return 1;
