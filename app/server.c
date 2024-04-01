@@ -1,3 +1,4 @@
+#include <cmath>
 #include <ctype.h>
 #include <getopt.h>
 #include <netinet/in.h>
@@ -26,6 +27,7 @@ typedef struct {
 typedef struct Server {
 	int port;
 	int fd;
+	int ack;
 	char *host;
 	struct Server *replicaof;
 } Server;
@@ -168,6 +170,26 @@ void psync(int client_fd) {
 	send(client_fd, buffer, len, 0);
 }
 
+void ping(int client_fd) {
+	if (server.replicaof != NULL && server.replicaof->fd == client_fd)
+		return;
+	send(client_fd, "+PONG\r\n", 7, 0);
+}
+
+void replconf(int client_fd, char *key) {
+	if is_str_equal (key, "getack") {
+		char buffer[BUFFER_SIZE] = {0};
+		int digits = floor(log10(abs(server.ack))) + 1;
+		int len = sprintf(
+			buffer, "*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$%d\r\n%d\r\n",
+			digits, server.ack);
+		send(client_fd, buffer, len, 0);
+		return;
+	}
+
+	send(client_fd, "+OK\r\n", 5, 0);
+}
+
 // Returns -> 0: success, 1: resend to replicas
 int evaluate_commands(char **commands, int num_args, int client_fd) {
 	int action = 0;
@@ -175,9 +197,8 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		char *command = to_lowercase(commands[i]);
 		char *key = commands[i + 1];
 		if is_str_equal (command, "ping") {
-			if (server.replicaof == NULL || server.replicaof->fd != client_fd) {
-				send(client_fd, "+PONG\r\n", 7, 0);
-			}
+			ping(client_fd);
+			server.ack += 14;
 		} else if is_str_equal (command, "echo") {
 			echo(client_fd, key);
 		} else if is_str_equal (command, "set") {
@@ -185,6 +206,11 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 			char *value = commands[i + 2];
 			char *ttl = i + 4 < num_args ? commands[i + 4] : NULL;
 			set(client_fd, key, value, ttl);
+			// *n\r\n$3\r\nset\r\n$n\r\nkey\r\n$n\r\nvalue\r\n
+			server.ack += 25 + strlen(key) + strlen(value);
+			// $2\r\npx\r\n$n\r\nttl\r\n
+			if (ttl != NULL)
+				server.ack += 14 + strlen(ttl);
 		} else if is_str_equal (command, "get") {
 			get(client_fd, key);
 		} else if is_str_equal (command, "info") {
@@ -192,12 +218,8 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 			info(client_fd, key);
 		} else if is_str_equal (command, "replconf") {
 			key = to_lowercase(key);
-			if is_str_equal (key, "getack") {
-				send(client_fd,
-					 "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n", 34, 0);
-			} else {
-				send(client_fd, "+OK\r\n", 5, 0);
-			}
+			replconf(client_fd, key);
+			server.ack += 37;
 		} else if is_str_equal (command, "psync") {
 			psync(client_fd);
 			replicas_fd[replicas_size++] = client_fd;
