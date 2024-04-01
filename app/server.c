@@ -236,7 +236,7 @@ void *handle_client(void *args) {
 	while (1) {
 		char buffer[BUFFER_SIZE] = {0};
 		if (read(client_fd, buffer, BUFFER_SIZE) <= 0) {
-			perror("Failed to receive data");
+			perror("Failed to receive data from client");
 			break;
 		}
 
