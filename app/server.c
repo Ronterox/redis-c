@@ -235,6 +235,7 @@ void *handle_client(void *args) {
 	printf("Client connected %d\n", client_fd);
 	while (1) {
 		char buffer[BUFFER_SIZE] = {0};
+		printf("Waiting for data from client %d\n", client_fd);
 		if (recv(client_fd, buffer, BUFFER_SIZE, 0) == -1) {
 			perror("Failed to receive data from client");
 			break;
