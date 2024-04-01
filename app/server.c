@@ -173,7 +173,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	int action = 0;
 	fori(i, num_args) {
 		char *command = to_lowercase(commands[i]);
-		char *key = to_lowercase(commands[i + 1]);
+		char *key = commands[i + 1];
 		if is_str_equal (command, "ping") {
 			send(client_fd, "+PONG\r\n", 7, 0);
 		} else if is_str_equal (command, "echo") {
@@ -186,14 +186,16 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "get") {
 			get(client_fd, key);
 		} else if is_str_equal (command, "info") {
+			key = to_lowercase(key);
 			info(client_fd, key);
 		} else if is_str_equal (command, "replconf") {
-			// if is_str_equal (key, "GETACK") {
-			// 	send(client_fd,
-			// 		 "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n", 34, 0);
-			// } else {
-			send(client_fd, "+OK\r\n", 5, 0);
-			// }
+			key = to_lowercase(key);
+			if is_str_equal (key, "getack") {
+				send(client_fd,
+					 "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n", 34, 0);
+			} else {
+				send(client_fd, "+OK\r\n", 5, 0);
+			}
 		} else if is_str_equal (command, "psync") {
 			psync(client_fd);
 			replicas_fd[replicas_size++] = client_fd;
