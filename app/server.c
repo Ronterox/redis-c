@@ -188,6 +188,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		} else if is_str_equal (command, "info") {
 			info(client_fd, key);
 		} else if is_str_equal (command, "replconf") {
+			printf("REPLCONF %s\n", key);
 			if is_str_equal (key, "getack") {
 				send(client_fd,
 					 "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$1\r\n0\r\n", 34, 0);
