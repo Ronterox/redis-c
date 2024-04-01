@@ -220,7 +220,7 @@ void *handle_client(void *args) {
 					fori(i, replicas_size) {
 						if (replicas_fd[i] != client_fd) {
 							printf("Sending to replica %d\n", replicas_fd[i]);
-							send(replicas_fd[i], buffer, BUFFER_SIZE, 0);
+							send(replicas_fd[i], buffer, strlen(buffer), 0);
 						}
 					}
 				}
