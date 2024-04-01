@@ -430,10 +430,11 @@ int main(int argc, char const *argv[]) {
 	};
 
 	if (server.replicaof != NULL) {
-		if (send_to_thread(replicate, NULL) != 0) {
-			perror("Error during replicate\n");
-			return 1;
-		}
+		// if (send_to_thread(replicate, NULL) != 0) {
+		// 	perror("Error during replicate\n");
+		// 	return 1;
+		// }
+		replicate();
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
