@@ -34,7 +34,7 @@ int main(int argc, char const *argv[]) {
 
 	send(sock_fd, message, len, 0);
 
-	char buffer[1024];
+	char buffer[1024] = {0};
 	if (recv(sock_fd, buffer, 1024, 0) == -1) {
 		perror("Failed to receive data");
 		return 1;
@@ -50,7 +50,7 @@ int main(int argc, char const *argv[]) {
 		strtok(buffer, "\r\n");
 		char *data;
 		while ((data = strtok(NULL, "\r\n")) != NULL)
-			printf("%s\n", data);
+			printf("\"%s\"\n", data);
 		break;
 	case '*':
 		printf("Array response\n");

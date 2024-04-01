@@ -47,7 +47,7 @@ time_t currentMillis() {
 
 int get_key_index(char *key) {
 	fori(i, key_values_size) {
-		if (is_str_equal(key_values[i].key, key))
+		if is_str_equal (key_values[i].key, key)
 			return i;
 	}
 	return -1;
@@ -100,6 +100,7 @@ void set(int client_fd, char *key, char *value, char *ttl) {
 
 	if (server.replicaof != NULL && server.replicaof->fd == client_fd)
 		return;
+
 	send(client_fd, "+OK\r\n", 5, 0);
 }
 
@@ -142,6 +143,29 @@ void info(int client_fd, char *info) {
 	}
 }
 
+void psync(int client_fd) {
+	send(client_fd,
+		 "+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n", 56, 0);
+
+	char empty_hex_rdb[] =
+		"524544495330303131fa0972656469732d76657205372e322e30fa0a726564"
+		"69732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656d"
+		"c2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2";
+
+	char binary_rdb[BUFFER_SIZE];
+	int i = 0, j = 0;
+	while (empty_hex_rdb[i]) {
+		char byte[3] = {empty_hex_rdb[i], empty_hex_rdb[i + 1], '\0'};
+		binary_rdb[j++] = (char)strtol(byte, NULL, 16);
+		i += 2;
+	}
+
+	char buffer[BUFFER_SIZE] = {0};
+	int len = snprintf(buffer, BUFFER_SIZE, "$%lu\r\n%s", strlen(binary_rdb),
+					   binary_rdb);
+	send(client_fd, buffer, len, 0);
+}
+
 // Returns -> 0: success, 1: don't close fd, 2: resend to replicas
 int evaluate_commands(char **commands, int num_args, int client_fd) {
 	int action = 0;
@@ -154,7 +178,9 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 			echo(client_fd, key);
 		} else if is_str_equal (command, "set") {
 			action = 2;
-			set(client_fd, key, commands[i + 2], commands[i + 4]);
+			char *value = commands[i + 2];
+			char *ttl = i + 4 < num_args ? commands[i + 4] : NULL;
+			set(client_fd, key, value, ttl);
 		} else if is_str_equal (command, "get") {
 			get(client_fd, key);
 		} else if is_str_equal (command, "info") {
@@ -163,29 +189,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 			send(client_fd, "+OK\r\n", 5, 0);
 		} else if is_str_equal (command, "psync") {
 			action = 1;
-			send(client_fd,
-				 "+FULLRESYNC 8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb 0\r\n",
-				 56, 0);
-
-			char empty_hex_rdb[] =
-				"524544495330303131fa0972656469732d76657205372e322e30fa0a726564"
-				"69732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656d"
-				"c2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2";
-
-			char binary_rdb[BUFFER_SIZE];
-			int i = 0, j = 0;
-			while (empty_hex_rdb[i]) {
-				char byte[3] = {empty_hex_rdb[i], empty_hex_rdb[i + 1], '\0'};
-				binary_rdb[j++] = (char)strtol(byte, NULL, 16);
-				i += 2;
-			}
-
-			char buffer[BUFFER_SIZE] = {0};
-			size_t len =
-				sprintf(buffer, "$%lu\r\n%s", strlen(binary_rdb), binary_rdb);
-			send(client_fd, buffer, len, 0);
-
-			replicas_fd[replicas_size++] = client_fd;
+			psync(client_fd);
 		}
 	}
 	return action;
@@ -224,8 +228,10 @@ void *handle_client(void *args) {
 			}
 		} while ((data = strtok(NULL, "\r\n")) != NULL);
 	}
+
 	if (res != 1)
 		close(client_fd);
+
 	return NULL;
 }
 
