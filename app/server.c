@@ -233,7 +233,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 
 		key = to_lowercase(key);
 		replconf(client_fd, key);
-		ack += 38;
+		ack += 37;
 
 	} else if is_str_equal (command, "psync") {
 
