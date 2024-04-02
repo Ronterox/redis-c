@@ -34,8 +34,6 @@ typedef struct Server {
 KeyValue key_values[KEYS_SIZE];
 int key_values_size = 0;
 
-// TODO: Solution, use the port of the replicas to connect as client, do not
-// save the fd
 int replicas_fd[10] = {0};
 int replicas_size = 0;
 
@@ -218,6 +216,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		// $2\r\npx\r\n$n\r\nttl\r\n
 		if (ttl != NULL)
 			ack += 14 + strlen(ttl);
+
 		return 1;
 
 	} else if is_str_equal (command, "get") {
