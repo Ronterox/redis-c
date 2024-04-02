@@ -34,6 +34,8 @@ typedef struct Server {
 KeyValue key_values[KEYS_SIZE];
 int key_values_size = 0;
 
+// TODO: Solution, use the port of the replicas to connect as client, do not
+// save the fd
 int replicas_fd[10] = {0};
 int replicas_size = 0;
 
@@ -321,10 +323,6 @@ int send_to_thread(void *func, void *args) {
 	return 0;
 }
 
-int client_to_thread(int *client_fd) {
-	return send_to_thread(handle_client, client_fd);
-}
-
 void *replicate() {
 	struct sockaddr_in repl_addr = {
 		.sin_family = AF_INET,
@@ -472,9 +470,9 @@ int main(int argc, char const *argv[]) {
 			return 1;
 		}
 
-		int result = client_to_thread(&client_fd);
+		int result = send_to_thread(handle_client, &client_fd);
 		if (result != 0) {
-			perror("Error during client_to_thread\n");
+			perror("Error during client to thread\n");
 			return 1;
 		}
 	}
