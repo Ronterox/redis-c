@@ -102,10 +102,10 @@ void set(int client_fd, char *key, char *value, char *ttl) {
 		key_values[index].ttl = key_ttl;
 	}
 
-	// if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
-	// 	printf("Replicated SET %s %s\n", key, value);
-	// 	return;
-	// }
+	if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
+		printf("Replicated SET %s %s\n", key, value);
+		return;
+	}
 
 	send(client_fd, "+OK\r\n", 5, 0);
 }
@@ -174,10 +174,10 @@ void psync(int client_fd) {
 }
 
 void ping(int client_fd) {
-	// if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
-	// 	printf("Replica pinged\n");
-	// 	return;
-	// }
+	if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
+		printf("Replica pinged\n");
+		return;
+	}
 	send(client_fd, "+PONG\r\n", 7, 0);
 }
 
