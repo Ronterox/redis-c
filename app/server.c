@@ -87,6 +87,7 @@ void set(int client_fd, char *key, char *value, char *ttl) {
 		send(client_fd, "-Missing arguments\r\n", 6, 0);
 		return;
 	}
+
 	int index = get_key_index(key);
 	time_t key_ttl = ttl == NULL ? 0 : atoi(ttl) + currentMillis();
 	if (index == -1) {
@@ -113,6 +114,7 @@ void get(int client_fd, char *key) {
 		send(client_fd, "-Missing key argument\r\n", 6, 0);
 		return;
 	}
+
 	int index = get_key_index(key);
 	time_t ttl = key_values[index].ttl;
 	if (index == -1 || ttl > 0 && currentMillis() > ttl) {
