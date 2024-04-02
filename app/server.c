@@ -194,41 +194,52 @@ void replconf(int client_fd, char *key) {
 
 // Returns -> 0: success, 1: resend to replicas
 int evaluate_commands(char **commands, int num_args, int client_fd) {
-	int action = 0;
-	fori(i, num_args) {
-		char *command = to_lowercase(commands[i]);
-		char *key = commands[i + 1];
-		if is_str_equal (command, "ping") {
-			ping(client_fd);
-			ack += 14;
-		} else if is_str_equal (command, "echo") {
-			echo(client_fd, key);
-		} else if is_str_equal (command, "set") {
-			action = 1;
-			char *value = commands[i + 2];
-			char *ttl = i + 4 < num_args ? commands[i + 4] : NULL;
-			set(client_fd, key, value, ttl);
-			// *n\r\n$3\r\nset\r\n$n\r\nkey\r\n$n\r\nvalue\r\n
-			ack += 25 + strlen(key) + strlen(value);
-			// $2\r\npx\r\n$n\r\nttl\r\n
-			if (ttl != NULL)
-				ack += 14 + strlen(ttl);
-		} else if is_str_equal (command, "get") {
-			get(client_fd, key);
-		} else if is_str_equal (command, "info") {
-			key = to_lowercase(key);
-			info(client_fd, key);
-		} else if is_str_equal (command, "replconf") {
-			key = to_lowercase(key);
-			replconf(client_fd, key);
-			ack += 38;
-		} else if is_str_equal (command, "psync") {
-			psync(client_fd);
-			replicas_fd[replicas_size++] = client_fd;
-		}
-		return action;
+	char *command = to_lowercase(commands[0]);
+	char *key = commands[1];
+
+	if is_str_equal (command, "ping") {
+
+		ping(client_fd);
+		ack += 14;
+
+	} else if is_str_equal (command, "echo") {
+
+		echo(client_fd, key);
+
+	} else if is_str_equal (command, "set") {
+
+		char *value = commands[2];
+		char *ttl = 4 < num_args ? commands[4] : NULL;
+		set(client_fd, key, value, ttl);
+		// *n\r\n$3\r\nset\r\n$n\r\nkey\r\n$n\r\nvalue\r\n
+		ack += 25 + strlen(key) + strlen(value);
+		// $2\r\npx\r\n$n\r\nttl\r\n
+		if (ttl != NULL)
+			ack += 14 + strlen(ttl);
+		return 1;
+
+	} else if is_str_equal (command, "get") {
+
+		get(client_fd, key);
+
+	} else if is_str_equal (command, "info") {
+
+		key = to_lowercase(key);
+		info(client_fd, key);
+
+	} else if is_str_equal (command, "replconf") {
+
+		key = to_lowercase(key);
+		replconf(client_fd, key);
+		ack += 38;
+
+	} else if is_str_equal (command, "psync") {
+
+		psync(client_fd);
+		replicas_fd[replicas_size++] = client_fd;
 	}
-	return action;
+
+	return 0;
 }
 
 void *handle_client(void *args) {
