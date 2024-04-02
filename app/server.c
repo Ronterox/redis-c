@@ -247,6 +247,9 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 
 		psync(client_fd);
 		replicas_fd[replicas_size++] = client_fd;
+
+	} else if is_str_equal (command, "wait") {
+		send(client_fd, "$1\r\n0\r\n", 7, 0);
 	}
 
 	return 0;
