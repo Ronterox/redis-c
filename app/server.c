@@ -253,7 +253,7 @@ void *handle_client(void *args) {
 		}
 
 		if (buffer[0] == '\0')
-			continue;
+			break;
 
 		printf("Received: %s\n", buffer);
 		char *data = strtok(strdup(buffer), "\r\n");
