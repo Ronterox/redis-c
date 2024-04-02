@@ -226,6 +226,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 			psync(client_fd);
 			replicas_fd[replicas_size++] = client_fd;
 		}
+		return action;
 	}
 	return action;
 }
