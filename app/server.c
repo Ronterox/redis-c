@@ -384,12 +384,9 @@ void *replicate() {
 	}
 	printf("Received RDB.\n");
 
-	result = client_to_thread(&server.replicaof->fd);
-	if (result != 0) {
-		perror("Error during client_to_thread of replica\n");
-		return NULL;
-	}
 	printf("Replication handshake successful\n");
+	handle_client(&server.replicaof->fd);
+
 	return NULL;
 }
 
@@ -445,11 +442,10 @@ int main(int argc, char const *argv[]) {
 	};
 
 	if (server.replicaof != NULL) {
-		// if (send_to_thread(replicate, NULL) != 0) {
-		// 	perror("Error during replicate\n");
-		// 	return 1;
-		// }
-		replicate();
+		if (send_to_thread(replicate, NULL) != 0) {
+			perror("Error during replicate\n");
+			return 1;
+		}
 	}
 
 	if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) !=
