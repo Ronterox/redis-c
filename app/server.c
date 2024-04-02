@@ -249,7 +249,8 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		replicas_fd[replicas_size++] = client_fd;
 
 	} else if is_str_equal (command, "wait") {
-		send(client_fd, ":0\r\n", 4, 0);
+		int len = sprintf(key, ":%d\r\n", replicas_size);
+		send(client_fd, key, len, 0);
 	}
 
 	return 0;
