@@ -77,6 +77,7 @@ void echo(int client_fd, char *echo) {
 		send(client_fd, "-Missing argument\r\n", 6, 0);
 		return;
 	}
+
 	char buffer[BUFFER_SIZE] = {0};
 	int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(echo), echo);
 	send(client_fd, buffer, len, 0);
@@ -181,6 +182,11 @@ void ping(int client_fd) {
 }
 
 void replconf(int client_fd, char *key) {
+	if (key == NULL) {
+		send(client_fd, "-Missing argument\r\n", 6, 0);
+		return;
+	}
+
 	if is_str_equal (key, "getack") {
 		char buffer[BUFFER_SIZE] = {0};
 		int digits = floor(log10(ack + 1)) + 1;
