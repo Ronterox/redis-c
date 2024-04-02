@@ -186,6 +186,7 @@ void replconf(int client_fd, char *key) {
 						  "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$%d\r\n%d\r\n",
 						  digits, ack);
 		send(client_fd, buffer, len, 0);
+		return;
 	}
 
 	send(client_fd, "+OK\r\n", 5, 0);
