@@ -102,10 +102,10 @@ void set(int client_fd, char *key, char *value, char *ttl) {
 		key_values[index].ttl = key_ttl;
 	}
 
-	if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
-		printf("Replicated SET %s %s\n", key, value);
-		return;
-	}
+	// if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
+	// 	printf("Replicated SET %s %s\n", key, value);
+	// 	return;
+	// }
 
 	send(client_fd, "+OK\r\n", 5, 0);
 }
@@ -133,6 +133,7 @@ void info(int client_fd, char *info) {
 		send(client_fd, "-Missing argument\r\n", 6, 0);
 		return;
 	}
+
 	if is_str_equal (info, "replication") {
 		char *message;
 		if (server.replicaof == NULL) {
@@ -174,10 +175,10 @@ void psync(int client_fd) {
 }
 
 void ping(int client_fd) {
-	if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
-		printf("Replica pinged\n");
-		return;
-	}
+	// if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
+	// 	printf("Replica pinged\n");
+	// 	return;
+	// }
 	send(client_fd, "+PONG\r\n", 7, 0);
 }
 
@@ -190,8 +191,6 @@ void replconf(int client_fd, char *key) {
 	if is_str_equal (key, "getack") {
 		char buffer[BUFFER_SIZE] = {0};
 		int digits = floor(log10(ack + 1)) + 1;
-		printf("ack: %d\n", ack);
-		printf("digits: %d\n", digits);
 		int len = sprintf(buffer,
 						  "*3\r\n$8\r\nREPLCONF\r\n$3\r\nACK\r\n$%d\r\n%d\r\n",
 						  digits, ack);
@@ -264,7 +263,7 @@ void *handle_client(void *args) {
 		}
 
 		if (buffer[0] == '\0')
-			continue;
+			break;
 
 		char *data = strtok(strdup(buffer), "\r\n");
 		do {
