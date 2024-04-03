@@ -511,10 +511,11 @@ int main(int argc, char const *argv[]) {
 				printf("Number of keys: %d\n", keys);
 				printf("Expires: %d\n", expires);
 
+				int len;
 				fori(i, keys) {
 					fread(data, sizeof(char), 2, file);
 					if ((int)data[0] == 0) { // Is String
-						int len = (int)data[1];
+						len = (int)data[1];
 
 						char key[len];
 						key[len] = '\0';
