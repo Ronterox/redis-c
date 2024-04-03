@@ -88,12 +88,7 @@ void echo(int client_fd, char *echo) {
 	send(client_fd, buffer, len, 0);
 }
 
-void set(int client_fd, char *key, char *value, char *ttl) {
-	if (key == NULL || value == NULL) {
-		send(client_fd, "-Missing arguments\r\n", 6, 0);
-		return;
-	}
-
+void set_key_value(char *key, char *value, char *ttl) {
 	int index = get_key_index(key);
 	time_t key_ttl = ttl == NULL ? 0 : atoi(ttl) + currentMillis();
 	if (index == -1) {
@@ -106,6 +101,15 @@ void set(int client_fd, char *key, char *value, char *ttl) {
 		key_values[index].value = strdup(value);
 		key_values[index].ttl = key_ttl;
 	}
+}
+
+void set(int client_fd, char *key, char *value, char *ttl) {
+	if (key == NULL || value == NULL) {
+		send(client_fd, "-Missing arguments\r\n", 6, 0);
+		return;
+	}
+
+	set_key_value(key, value, ttl);
 
 	if (server.replicaof != NULL && server.replicaof->fd == client_fd) {
 		printf("Replicated SET %s %s\n", key, value);
@@ -474,6 +478,68 @@ int main(int argc, char const *argv[]) {
 		.sin_port = htons(server.port),
 		.sin_addr = {htonl(INADDR_ANY)},
 	};
+
+	if (server.directory != NULL && server.dbfilename != NULL) {
+		char filepath[BUFFER_SIZE] = {0};
+		sprintf(filepath, "%s/%s", server.directory, server.dbfilename);
+
+		FILE *file = fopen(filepath, "rb");
+		if (file != NULL) {
+			char data[BUFFER_SIZE] = {0};
+
+			fread(data, sizeof(char), 5, file);
+			if (!is_str_equal(data, "REDIS")) {
+				printf("Invalid RDB file\n");
+				return 1;
+			}
+			printf("Magic: %s\n", data);
+
+			fread(data, sizeof(char), 4, file);
+			printf("RDB Version: %s\n", data);
+
+			memset(data, 0, 5);
+			while (fread(data, sizeof(char), 1, file)) {
+				if ((int)data[0] != '\xFE') // Database selector
+					continue;
+
+				fseek(file, 2, SEEK_CUR);
+
+				fread(data, sizeof(char), 2, file);
+				int keys = (int)data[0];
+				int expires = (int)data[1];
+
+				printf("Number of keys: %d\n", keys);
+				printf("Expires: %d\n", expires);
+
+				fori(i, keys) {
+					fread(data, sizeof(char), 2, file);
+					if ((int)data[0] == 0) { // Is String
+						int len = (int)data[1];
+
+						char key[len];
+						key[len] = '\0';
+						fread(key, sizeof(char), len, file);
+						fread(&len, sizeof(char), 1, file);
+
+						char value[len];
+						value[len] = '\0';
+						fread(value, sizeof(char), len, file);
+
+						printf("Key: %s\n", key);
+						printf("Value: %s\n", value);
+						set_key_value(key, value, NULL);
+					} else {
+						printf("Ignoring value of type: %d\n", data[0]);
+					}
+				}
+			}
+			fclose(file);
+
+			printf("Loaded %d keys from %s\n", key_values_size, filepath);
+		} else {
+			printf("Starting with empty database\n");
+		}
+	}
 
 	if (server.replicaof != NULL) {
 		if (send_to_thread(replicate, NULL) != 0) {
