@@ -28,6 +28,8 @@ typedef struct Server {
 	int port;
 	int fd;
 	char *host;
+	char *directory;
+	char *dbfilename;
 	struct Server *replicaof;
 } Server;
 
@@ -201,6 +203,18 @@ void replconf(int client_fd, char *key) {
 	send(client_fd, "+OK\r\n", 5, 0);
 }
 
+void config(int client_fd, char *key, char *value) {
+	if is_str_equal (key, "get") {
+		char buffer[BUFFER_SIZE] = {0};
+		char *data =
+			is_str_equal(value, "dir") ? server.directory : server.dbfilename;
+
+		int len = sprintf(buffer, "*2\r\n$%lu\r\n%s\r\n$%lu\r\n%s\r\n",
+						  strlen(value), value, strlen(data), data);
+		send(client_fd, buffer, len, 0);
+	}
+}
+
 // Returns -> 0: success, 1: resend to replicas
 int evaluate_commands(char **commands, int num_args, int client_fd) {
 	char *command = to_lowercase(commands[0]);
@@ -249,8 +263,15 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		replicas_fd[replicas_size++] = client_fd;
 
 	} else if is_str_equal (command, "wait") {
+
 		int len = sprintf(key, ":%d\r\n", replicas_size);
 		send(client_fd, key, len, 0);
+
+	} else if is_str_equal (command, "config") {
+
+		char *value = commands[2];
+		key = to_lowercase(key);
+		config(client_fd, key, value);
 	}
 
 	return 0;
@@ -419,18 +440,23 @@ int main(int argc, char const *argv[]) {
 	const struct option long_options[] = {
 		{"port", required_argument, NULL, 'p'},
 		{"replicaof", required_argument, NULL, 'r'},
+		{"dir", required_argument, NULL, 'd'},
+		{"dbfilename", required_argument, NULL, 'f'},
 	};
 
 	int opt;
-	while ((opt = getopt_long(argc, (char *const *)argv, "p:r", long_options,
-							  NULL)) != -1) {
+	while ((opt = getopt_long(argc, (char *const *)argv, "p:r:d:f",
+							  long_options, NULL)) != -1) {
 		if (opt == 'p') {
 			server.port = atoi(optarg);
 		} else if (opt == 'r') {
-			// Should check for errors here
 			server.replicaof = malloc(sizeof(Server));
 			server.replicaof->host = optarg;
 			server.replicaof->port = atoi(argv[optind]);
+		} else if (opt == 'd') {
+			server.directory = optarg;
+		} else if (opt == 'f') {
+			server.dbfilename = optarg;
 		} else {
 			printf("Usage: %s [--port PORT] [--replicaof HOST PORT]\n",
 				   argv[0]);
