@@ -18,8 +18,8 @@
 #define fori(i, n) for (int i = 0; i < n; i++)
 #define is_str_equal(str1, str2) (strcmp(str1, str2) == 0)
 
-#define switch_command(str) if is_str_equal (command, str)
-#define case_command(str) else if is_str_equal (command, str)
+#define cmd_switch(str) if is_str_equal (command, str)
+#define cmd_case(str) else if is_str_equal (command, str)
 
 typedef struct {
 	char *key;
@@ -224,12 +224,12 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	char *key = commands[1];
 	char *value = commands[2];
 
-	switch_command("ping") {
+	cmd_switch("ping") {
 		ping(client_fd);
 		ack += 14;
 	}
-	case_command("echo") { echo(client_fd, key); }
-	case_command("set") {
+	cmd_case("echo") { echo(client_fd, key); }
+	cmd_case("set") {
 		char *ttl = 4 < num_args ? commands[4] : NULL;
 		set(client_fd, key, value, ttl);
 		// *n\r\n$3\r\nset\r\n$n\r\nkey\r\n$n\r\nvalue\r\n
@@ -239,27 +239,38 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 			ack += 14 + strlen(ttl);
 		return 1;
 	}
-	case_command("get") { get(client_fd, key); }
-	case_command("info") {
+	cmd_case("get") { get(client_fd, key); }
+	cmd_case("info") {
 		key = to_lowercase(key);
 		info(client_fd, key);
 	}
-	case_command("replconf") {
+	cmd_case("replconf") {
 		key = to_lowercase(key);
 		replconf(client_fd, key);
 		ack += 37;
 	}
-	case_command("psync") {
+	cmd_case("psync") {
 		psync(client_fd);
 		replicas_fd[replicas_size++] = client_fd;
 	}
-	case_command("wait") {
+	cmd_case("wait") {
 		int len = sprintf(key, ":%d\r\n", replicas_size);
 		send(client_fd, key, len, 0);
 	}
-	case_command("config") {
+	cmd_case("config") {
 		key = to_lowercase(key);
 		config(client_fd, key, value);
+	}
+	cmd_case("keys") {
+		if (key[0] == '*' && key[1] == '\0') {
+			char buffer[BUFFER_SIZE] = {0};
+			int len = sprintf(buffer, "*%d\r\n", key_values_size);
+			fori(i, key_values_size) {
+				len += sprintf(buffer + len, "$%lu\r\n%s\r\n",
+							   strlen(key_values[i].key), key_values[i].key);
+			}
+			send(client_fd, buffer, len, 0);
+		}
 	}
 
 	return 0;
