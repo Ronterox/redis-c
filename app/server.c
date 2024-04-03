@@ -21,6 +21,11 @@
 #define cmd_switch(str) if is_str_equal (command, str)
 #define cmd_case(str) else if is_str_equal (command, str)
 
+#define DATABASE_START '\xFE'
+#define EXPIRE_MS '\xFC'
+#define EXPIRE_SEC '\xFD'
+#define STRING '\x00'
+
 typedef struct {
 	char *key;
 	char *value;
@@ -497,9 +502,10 @@ int main(int argc, char const *argv[]) {
 			fread(data, sizeof(char), 4, file);
 			printf("RDB Version: %s\n", data);
 
+			char byte;
 			memset(data, 0, 5);
-			while (fread(data, sizeof(char), 1, file)) {
-				if ((int)data[0] != '\xFE') // Database selector
+			while (fread(&byte, sizeof(char), 1, file)) {
+				if (byte != DATABASE_START)
 					continue;
 
 				fseek(file, 2, SEEK_CUR);
@@ -514,21 +520,21 @@ int main(int argc, char const *argv[]) {
 				int len;
 				char *ttl;
 				fori(i, keys) {
-					fread(data, sizeof(char), 2, file);
-					int byte = (int)data[0];
+					fread(&byte, sizeof(char), 1, file);
 
-					int is_ms = byte == '\xFC';
-					int is_sec = byte == '\xFD';
-					if (is_ms || is_sec) {
+					short is_ms = byte == EXPIRE_MS;
+					if (is_ms || byte == EXPIRE_SEC) {
 						len = is_ms ? 8 : 4;
-						ttl[len] = '\0';
-						fread(ttl, sizeof(char), len, file);
+						fread(data, sizeof(char), len, file);
+						ttl = strdup(data);
+
+						fread(&byte, sizeof(char), 1, file);
 					} else {
 						ttl = NULL;
 					}
 
-					if (byte == 0) { // Is String
-						len = (int)data[1];
+					if (byte == STRING) {
+						fread(&len, sizeof(char), 1, file);
 
 						char key[len];
 						key[len] = '\0';
@@ -539,8 +545,12 @@ int main(int argc, char const *argv[]) {
 						value[len] = '\0';
 						fread(value, sizeof(char), len, file);
 
-						printf("Key: %s\nValue: %s\n", key, value);
-						set_key_value(key, value, ttl);
+						set_key_value(key, value, NULL);
+						if (ttl != NULL) {
+							key_values[key_values_size - 1].ttl = (time_t)ttl;
+						}
+						printf("Loaded key: %s\nValue: %s\nTTL: %ld\n", key,
+							   value, (time_t)ttl);
 					} else {
 						printf("Ignoring value of type: %d\n", data[0]);
 					}
