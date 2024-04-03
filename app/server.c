@@ -18,6 +18,9 @@
 #define fori(i, n) for (int i = 0; i < n; i++)
 #define is_str_equal(str1, str2) (strcmp(str1, str2) == 0)
 
+#define switch_command(str) if is_str_equal (command, str)
+#define case_command(str) else if is_str_equal (command, str)
+
 typedef struct {
 	char *key;
 	char *value;
@@ -219,19 +222,14 @@ void config(int client_fd, char *key, char *value) {
 int evaluate_commands(char **commands, int num_args, int client_fd) {
 	char *command = to_lowercase(commands[0]);
 	char *key = commands[1];
+	char *value = commands[2];
 
-	if is_str_equal (command, "ping") {
-
+	switch_command("ping") {
 		ping(client_fd);
 		ack += 14;
-
-	} else if is_str_equal (command, "echo") {
-
-		echo(client_fd, key);
-
-	} else if is_str_equal (command, "set") {
-
-		char *value = commands[2];
+	}
+	case_command("echo") { echo(client_fd, key); }
+	case_command("set") {
 		char *ttl = 4 < num_args ? commands[4] : NULL;
 		set(client_fd, key, value, ttl);
 		// *n\r\n$3\r\nset\r\n$n\r\nkey\r\n$n\r\nvalue\r\n
@@ -239,37 +237,27 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		// $2\r\npx\r\n$n\r\nttl\r\n
 		if (ttl != NULL)
 			ack += 14 + strlen(ttl);
-
 		return 1;
-
-	} else if is_str_equal (command, "get") {
-
-		get(client_fd, key);
-
-	} else if is_str_equal (command, "info") {
-
+	}
+	case_command("get") { get(client_fd, key); }
+	case_command("info") {
 		key = to_lowercase(key);
 		info(client_fd, key);
-
-	} else if is_str_equal (command, "replconf") {
-
+	}
+	case_command("replconf") {
 		key = to_lowercase(key);
 		replconf(client_fd, key);
 		ack += 37;
-
-	} else if is_str_equal (command, "psync") {
-
+	}
+	case_command("psync") {
 		psync(client_fd);
 		replicas_fd[replicas_size++] = client_fd;
-
-	} else if is_str_equal (command, "wait") {
-
+	}
+	case_command("wait") {
 		int len = sprintf(key, ":%d\r\n", replicas_size);
 		send(client_fd, key, len, 0);
-
-	} else if is_str_equal (command, "config") {
-
-		char *value = commands[2];
+	}
+	case_command("config") {
 		key = to_lowercase(key);
 		config(client_fd, key, value);
 	}
