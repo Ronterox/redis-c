@@ -525,8 +525,7 @@ int main(int argc, char const *argv[]) {
 						value[len] = '\0';
 						fread(value, sizeof(char), len, file);
 
-						printf("Key: %s\n", key);
-						printf("Value: %s\n", value);
+						printf("Key: %s\nValue: %s\n", key, value);
 						set_key_value(key, value, NULL);
 					} else {
 						printf("Ignoring value of type: %d\n", data[0]);
