@@ -512,9 +512,22 @@ int main(int argc, char const *argv[]) {
 				printf("Expires: %d\n", expires);
 
 				int len;
+				char *ttl;
 				fori(i, keys) {
 					fread(data, sizeof(char), 2, file);
-					if ((int)data[0] == 0) { // Is String
+					int byte = (int)data[0];
+
+					int is_ms = byte == '\xFC';
+					int is_sec = byte == '\xFD';
+					if (is_ms || is_sec) {
+						len = is_ms ? 8 : 4;
+						ttl[len] = '\0';
+						fread(ttl, sizeof(char), len, file);
+					} else {
+						ttl = NULL;
+					}
+
+					if (byte == 0) { // Is String
 						len = (int)data[1];
 
 						char key[len];
@@ -527,7 +540,7 @@ int main(int argc, char const *argv[]) {
 						fread(value, sizeof(char), len, file);
 
 						printf("Key: %s\nValue: %s\n", key, value);
-						set_key_value(key, value, NULL);
+						set_key_value(key, value, ttl);
 					} else {
 						printf("Ignoring value of type: %d\n", data[0]);
 					}
