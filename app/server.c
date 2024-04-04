@@ -142,6 +142,21 @@ void get(int client_fd, char *key) {
 	}
 }
 
+void type(int client_fd, char *key) {
+	if (key == NULL) {
+		send(client_fd, "-Missing key argument\r\n", 6, 0);
+		return;
+	}
+
+	int index = get_key_index(key);
+	time_t ttl = key_values[index].ttl;
+	if (index == -1 || ttl > 0 && currentMillis() > ttl) {
+		send(client_fd, "+none\r\n", 7, 0);
+	} else {
+		send(client_fd, "+string\r\n", 9, 0);
+	}
+}
+
 void info(int client_fd, char *info) {
 	if (info == NULL) {
 		send(client_fd, "-Missing argument\r\n", 6, 0);
@@ -281,6 +296,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 			send(client_fd, buffer, len, 0);
 		}
 	}
+	cmd_case("type") { type(client_fd, key); }
 
 	return 0;
 }
@@ -428,6 +444,86 @@ void *replicate() {
 	return NULL;
 }
 
+void read_rdb() {
+	char filepath[BUFFER_SIZE] = {0};
+	sprintf(filepath, "%s/%s", server.directory, server.dbfilename);
+
+	FILE *file = fopen(filepath, "rb");
+	if (file != NULL) {
+		char data[BUFFER_SIZE] = {0};
+
+		fread(data, sizeof(char), 5, file);
+		if (!is_str_equal(data, "REDIS")) {
+			printf("Invalid RDB file\n");
+			return;
+		}
+		printf("Magic: %s\n", data);
+
+		fread(data, sizeof(char), 4, file);
+		printf("RDB Version: %s\n", data);
+
+		char byte;
+		memset(data, 0, 5);
+		while (fread(&byte, sizeof(char), 1, file)) {
+			if (byte != DATABASE_START)
+				continue;
+
+			fseek(file, 2, SEEK_CUR);
+
+			fread(data, sizeof(char), 2, file);
+			int keys = (int)data[0];
+			int expires = (int)data[1];
+
+			printf("Number of keys: %d\n", keys);
+			printf("Expires: %d\n", expires);
+
+			int len;
+			char *ttl;
+			fori(i, keys) {
+				fread(&byte, sizeof(char), 1, file);
+
+				short is_ms = byte == EXPIRE_MS;
+				if (is_ms || byte == EXPIRE_SEC) {
+					len = is_ms ? 8 : 4;
+					fread(data, sizeof(char), len, file);
+					ttl = strdup(data);
+
+					fread(&byte, sizeof(char), 1, file);
+				} else {
+					ttl = NULL;
+				}
+
+				if (byte == STRING) {
+					fread(&len, sizeof(char), 1, file);
+
+					char key[len];
+					key[len] = '\0';
+					fread(key, sizeof(char), len, file);
+					fread(&len, sizeof(char), 1, file);
+
+					char value[len];
+					value[len] = '\0';
+					fread(value, sizeof(char), len, file);
+
+					set_key_value(key, value, NULL);
+					if (ttl != NULL) {
+						key_values[key_values_size - 1].ttl = (time_t)ttl;
+					}
+					printf("Loaded key: %s\nValue: %s\nTTL: %ld\n", key, value,
+						   (time_t)ttl);
+				} else {
+					printf("Ignoring value of type: %d\n", data[0]);
+				}
+			}
+		}
+		fclose(file);
+
+		printf("Loaded %d keys from %s\n", key_values_size, filepath);
+	} else {
+		printf("Starting with empty database\n");
+	}
+}
+
 int main(int argc, char const *argv[]) {
 	// Disable output buffering
 	setbuf(stdout, NULL);
@@ -485,83 +581,7 @@ int main(int argc, char const *argv[]) {
 	};
 
 	if (server.directory != NULL && server.dbfilename != NULL) {
-		char filepath[BUFFER_SIZE] = {0};
-		sprintf(filepath, "%s/%s", server.directory, server.dbfilename);
-
-		FILE *file = fopen(filepath, "rb");
-		if (file != NULL) {
-			char data[BUFFER_SIZE] = {0};
-
-			fread(data, sizeof(char), 5, file);
-			if (!is_str_equal(data, "REDIS")) {
-				printf("Invalid RDB file\n");
-				return 1;
-			}
-			printf("Magic: %s\n", data);
-
-			fread(data, sizeof(char), 4, file);
-			printf("RDB Version: %s\n", data);
-
-			char byte;
-			memset(data, 0, 5);
-			while (fread(&byte, sizeof(char), 1, file)) {
-				if (byte != DATABASE_START)
-					continue;
-
-				fseek(file, 2, SEEK_CUR);
-
-				fread(data, sizeof(char), 2, file);
-				int keys = (int)data[0];
-				int expires = (int)data[1];
-
-				printf("Number of keys: %d\n", keys);
-				printf("Expires: %d\n", expires);
-
-				int len;
-				char *ttl;
-				fori(i, keys) {
-					fread(&byte, sizeof(char), 1, file);
-
-					short is_ms = byte == EXPIRE_MS;
-					if (is_ms || byte == EXPIRE_SEC) {
-						len = is_ms ? 8 : 4;
-						fread(data, sizeof(char), len, file);
-						ttl = strdup(data);
-
-						fread(&byte, sizeof(char), 1, file);
-					} else {
-						ttl = NULL;
-					}
-
-					if (byte == STRING) {
-						fread(&len, sizeof(char), 1, file);
-
-						char key[len];
-						key[len] = '\0';
-						fread(key, sizeof(char), len, file);
-						fread(&len, sizeof(char), 1, file);
-
-						char value[len];
-						value[len] = '\0';
-						fread(value, sizeof(char), len, file);
-
-						set_key_value(key, value, NULL);
-						if (ttl != NULL) {
-							key_values[key_values_size - 1].ttl = (time_t)ttl;
-						}
-						printf("Loaded key: %s\nValue: %s\nTTL: %ld\n", key,
-							   value, (time_t)ttl);
-					} else {
-						printf("Ignoring value of type: %d\n", data[0]);
-					}
-				}
-			}
-			fclose(file);
-
-			printf("Loaded %d keys from %s\n", key_values_size, filepath);
-		} else {
-			printf("Starting with empty database\n");
-		}
+		read_rdb();
 	}
 
 	if (server.replicaof != NULL) {
