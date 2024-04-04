@@ -184,7 +184,7 @@ void set_stream(int client_fd, char *key, char *id, char **data, int dsize) {
 	Stream *stream;
 	fori(i, streams_size) {
 		stream = &streams[i];
-		parse_id(stream->id[stream->id_seq.seq], &ms_i, &seq_i);
+		parse_id(stream->id[stream->id_seq.seq - 1], &ms_i, &seq_i);
 
 		if (ms < ms_i || ms == ms_i && seq <= seq_i) {
 			send(client_fd,
