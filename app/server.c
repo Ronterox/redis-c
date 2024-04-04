@@ -138,7 +138,7 @@ void set_stream(int client_fd, char *key, char *id, char **data, int dsize) {
 	int seq;
 	parse_id(id, &ms, &seq);
 
-	if (seq <= 0 && ms <= 0) {
+	if (ms <= 0 || seq <= 0 && ms <= 0) {
 		send(client_fd,
 			 "-ERR The ID specified in XADD must be greater than 0-0\r\n", 56,
 			 0);
@@ -150,7 +150,7 @@ void set_stream(int client_fd, char *key, char *id, char **data, int dsize) {
 		int seq_i;
 		parse_id(streams[i].id, &ms_i, &seq_i);
 
-		if (ms <= ms_i && seq <= seq_i) {
+		if (ms < ms_i || ms == ms_i && seq <= seq_i) {
 			send(client_fd,
 				 "-ERR The ID specified in XADD is equal or smaller than "
 				 "the target stream top item\r\n",
