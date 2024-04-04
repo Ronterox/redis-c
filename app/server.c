@@ -34,8 +34,8 @@ typedef struct {
 
 typedef struct {
 	char *id;
-	char **keys;
-	char **values;
+	char *keys[10];
+	char *values[10];
 } Stream;
 
 typedef struct Server {
@@ -334,6 +334,10 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	cmd_case("keys") { keys(client_fd, key); }
 	cmd_case("type") { type(client_fd, key); }
 	cmd_case("xadd") {
+		printf("XADD\n");
+		printf("ID: %s\n", commands[2]);
+		printf("Key: %s\n", commands[3]);
+		printf("Value: %s\n", commands[4]);
 		set_stream(client_fd, commands[2], commands[3], commands[4]);
 	}
 
