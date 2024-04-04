@@ -130,7 +130,7 @@ void parse_id(char *id, time_t *ms, int *seq) {
 
 	*ms = atoi(id);
 	if (id[index + 1] == '*') {
-		*seq = streams_size + 1;
+		*seq = *ms == 0 ? 1 : streams_size;
 		sprintf(id, "%ld-%d", *ms, *seq);
 	} else {
 		*seq = atoi(id + index + 1);
