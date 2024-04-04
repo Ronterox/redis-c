@@ -124,11 +124,44 @@ void set_key_value(char *key, char *value, char *ttl) {
 	}
 }
 
-void set_stream(int client_fd, char *key, char *id, char **data,
-				int data_size) {
+void parse_id(char *id, time_t *ms, int *seq) {
+	int index = strchr(id, '-') - id;
+	id[index] = '\0';
+
+	*ms = atoi(id);
+	*seq = atoi(id + index + 1);
+	id[index] = '-';
+}
+
+void set_stream(int client_fd, char *key, char *id, char **data, int dsize) {
+	time_t ms;
+	int seq;
+	parse_id(id, &ms, &seq);
+
+	if (ms <= 0 || seq <= 0 && ms <= 0) {
+		send(client_fd,
+			 "-ERR The ID specified in XADD must be greater than 0-0\r\n", 56,
+			 0);
+		return;
+	}
+
+	fori(i, streams_size) {
+		time_t ms_i;
+		int seq_i;
+		parse_id(streams[i].id, &ms_i, &seq_i);
+
+		if (ms <= ms_i && seq <= seq_i) {
+			send(client_fd,
+				 "-ERR The ID specified in XADD is equal or smaller than "
+				 "the target stream top item\r\n",
+				 83, 0);
+			return;
+		}
+	}
+
 	streams[streams_size].key = strdup(key);
 	streams[streams_size].id = strdup(id);
-	for (int i = 0; i < data_size - 3; i += 2) {
+	for (int i = 0; i < dsize - 3; i += 2) {
 		streams[streams_size].keys[i] = strdup(data[i]);
 		streams[streams_size].values[i] = strdup(data[i + 1]);
 	}
