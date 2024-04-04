@@ -138,7 +138,7 @@ void set_stream(int client_fd, char *key, char *id, char **data, int dsize) {
 	int seq;
 	parse_id(id, &ms, &seq);
 
-	if (ms <= 0 || seq <= 0 && ms <= 0) {
+	if (seq <= 0 && ms <= 0) {
 		send(client_fd,
 			 "-ERR The ID specified in XADD must be greater than 0-0\r\n", 56,
 			 0);
