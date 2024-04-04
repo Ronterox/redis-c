@@ -33,6 +33,7 @@ typedef struct {
 } KeyValue;
 
 typedef struct {
+	char *key;
 	char *id;
 	char *keys[10];
 	char *values[10];
@@ -66,22 +67,18 @@ time_t currentMillis() {
 	return tp.tv_sec * 1000 + tp.tv_usec / 1000;
 }
 
-int get_key_index(char *key) {
-	fori(i, keyvs_size) {
-		if is_str_equal (keyvs[i].key, key)
+int get_index(char *key, void *arr, int size) {
+	fori(i, size) {
+		if is_str_equal (key, ((KeyValue *)arr)[i].key)
 			return i;
 	}
 	return -1;
 }
 
+int get_key_index(char *key) { return get_index(key, keyvs, keyvs_size); }
+
 int get_stream_index(char *key) {
-	fori(i, streams_size) {
-		for (int j = 0; streams[i].keys[j]; j++) {
-			if is_str_equal (streams[i].keys[j], key)
-				return i;
-		}
-	}
-	return -1;
+	return get_index(key, streams, streams_size);
 }
 
 char *parse_string(char *data) {
@@ -127,10 +124,14 @@ void set_key_value(char *key, char *value, char *ttl) {
 	}
 }
 
-void set_stream(int client_fd, char *id, char *key, char *value) {
+void set_stream(int client_fd, char *key, char *id, char **data,
+				int data_size) {
+	streams[streams_size].key = strdup(key);
 	streams[streams_size].id = strdup(id);
-	streams[streams_size].keys[0] = strdup(key);
-	streams[streams_size].values[0] = strdup(value);
+	for (int i = 0; i < data_size - 3; i += 2) {
+		streams[streams_size].keys[i] = strdup(data[i]);
+		streams[streams_size].values[i] = strdup(data[i + 1]);
+	}
 	streams_size++;
 
 	char buffer[BUFFER_SIZE] = {0};
@@ -336,7 +337,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	cmd_case("keys") { keys(client_fd, key); }
 	cmd_case("type") { type(client_fd, key); }
 	cmd_case("xadd") {
-		set_stream(client_fd, commands[2], commands[3], commands[4]);
+		set_stream(client_fd, key, value, commands + 3, num_args);
 	}
 
 	return 0;
