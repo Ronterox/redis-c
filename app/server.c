@@ -33,6 +33,11 @@ typedef struct {
 } KeyValue;
 
 typedef struct {
+	int ms;
+	int seq;
+} Sequence;
+
+typedef struct {
 	char *key;
 	char *id;
 	char *keys[10];
@@ -56,6 +61,9 @@ int repl_size = 0;
 
 Stream streams[KEYS_SIZE];
 int streams_size = 0;
+
+Sequence sequences[KEYS_SIZE] = {{.ms = 0, .seq = 1}};
+int sequences_size = 1;
 
 int ack = 0;
 Server server = {.port = 6379, .host = "localhost"};
@@ -124,13 +132,25 @@ void set_key_value(char *key, char *value, char *ttl) {
 	}
 }
 
+int next_sequence(time_t ms) {
+	fori(i, sequences_size) {
+		if (sequences[i].ms == ms) {
+			return sequences[i].seq++;
+		}
+	}
+	sequences[sequences_size].ms = ms;
+	sequences[sequences_size].seq = 1;
+	sequences_size++;
+	return 0;
+}
+
 void parse_id(char *id, time_t *ms, int *seq) {
 	int index = strchr(id, '-') - id;
 	id[index] = '\0';
 
 	*ms = atoi(id);
 	if (id[index + 1] == '*') {
-		*seq = *ms == 0 ? 1 : streams_size;
+		*seq = next_sequence(*ms);
 		sprintf(id, "%ld-%d", *ms, *seq);
 	} else {
 		*seq = atoi(id + index + 1);
