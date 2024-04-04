@@ -333,7 +333,9 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	}
 	cmd_case("keys") { keys(client_fd, key); }
 	cmd_case("type") { type(client_fd, key); }
-	cmd_case("xadd") {}
+	cmd_case("xadd") {
+		set_stream(client_fd, commands[2], commands[3], commands[4]);
+	}
 
 	return 0;
 }
