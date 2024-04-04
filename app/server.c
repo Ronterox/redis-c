@@ -75,9 +75,11 @@ int get_key_index(char *key) {
 }
 
 int get_stream_index(char *key) {
-	fori(i, keyvs_size) {
-		if is_str_equal (keyvs[i].key, key)
-			return i;
+	fori(i, streams_size) {
+		for (int j = 0; streams[i].keys[j]; j++) {
+			if is_str_equal (streams[i].keys[j], key)
+				return i;
+		}
 	}
 	return -1;
 }
@@ -334,10 +336,6 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	cmd_case("keys") { keys(client_fd, key); }
 	cmd_case("type") { type(client_fd, key); }
 	cmd_case("xadd") {
-		printf("XADD\n");
-		printf("ID: %s\n", commands[2]);
-		printf("Key: %s\n", commands[3]);
-		printf("Value: %s\n", commands[4]);
 		set_stream(client_fd, commands[2], commands[3], commands[4]);
 	}
 
