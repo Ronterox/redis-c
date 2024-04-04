@@ -32,6 +32,12 @@ typedef struct {
 	time_t ttl;
 } KeyValue;
 
+typedef struct {
+	char *id;
+	char **keys;
+	char **values;
+} Stream;
+
 typedef struct Server {
 	int port;
 	int fd;
@@ -41,11 +47,14 @@ typedef struct Server {
 	struct Server *replicaof;
 } Server;
 
-KeyValue key_values[KEYS_SIZE];
-int key_values_size = 0;
+KeyValue keyvs[KEYS_SIZE];
+int keyvs_size = 0;
 
-int replicas_fd[10] = {0};
-int replicas_size = 0;
+int repl_fd[10] = {0};
+int repl_size = 0;
+
+Stream streams[KEYS_SIZE];
+int streams_size = 0;
 
 int ack = 0;
 Server server = {.port = 6379, .host = "localhost"};
@@ -58,8 +67,16 @@ time_t currentMillis() {
 }
 
 int get_key_index(char *key) {
-	fori(i, key_values_size) {
-		if is_str_equal (key_values[i].key, key)
+	fori(i, keyvs_size) {
+		if is_str_equal (keyvs[i].key, key)
+			return i;
+	}
+	return -1;
+}
+
+int get_stream_index(char *key) {
+	fori(i, keyvs_size) {
+		if is_str_equal (keyvs[i].key, key)
 			return i;
 	}
 	return -1;
@@ -79,7 +96,7 @@ char *to_lowercase(char *str) {
 
 char *get_key_value(char *key) {
 	int index = get_key_index(key);
-	return index == -1 ? NULL : key_values[index].value;
+	return index == -1 ? NULL : keyvs[index].value;
 }
 
 void echo(int client_fd, char *echo) {
@@ -97,15 +114,26 @@ void set_key_value(char *key, char *value, char *ttl) {
 	int index = get_key_index(key);
 	time_t key_ttl = ttl == NULL ? 0 : atoi(ttl) + currentMillis();
 	if (index == -1) {
-		key_values[key_values_size].key = strdup(key);
-		key_values[key_values_size].value = strdup(value);
-		key_values[key_values_size].ttl = key_ttl;
-		key_values_size++;
+		keyvs[keyvs_size].key = strdup(key);
+		keyvs[keyvs_size].value = strdup(value);
+		keyvs[keyvs_size].ttl = key_ttl;
+		keyvs_size++;
 	} else {
-		free(key_values[index].value);
-		key_values[index].value = strdup(value);
-		key_values[index].ttl = key_ttl;
+		free(keyvs[index].value);
+		keyvs[index].value = strdup(value);
+		keyvs[index].ttl = key_ttl;
 	}
+}
+
+void set_stream(int client_fd, char *id, char *key, char *value) {
+	streams[streams_size].id = strdup(id);
+	streams[streams_size].keys[0] = strdup(key);
+	streams[streams_size].values[0] = strdup(value);
+	streams_size++;
+
+	char buffer[BUFFER_SIZE] = {0};
+	int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(id), id);
+	send(client_fd, buffer, len, 0);
 }
 
 void set(int client_fd, char *key, char *value, char *ttl) {
@@ -131,12 +159,12 @@ void get(int client_fd, char *key) {
 	}
 
 	int index = get_key_index(key);
-	time_t ttl = key_values[index].ttl;
+	time_t ttl = keyvs[index].ttl;
 	if (index == -1 || ttl > 0 && currentMillis() > ttl) {
 		send(client_fd, "$-1\r\n", 5, 0);
 	} else {
 		char buffer[BUFFER_SIZE] = {0};
-		char *value = key_values[index].value;
+		char *value = keyvs[index].value;
 		int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(value), value);
 		send(client_fd, buffer, len, 0);
 	}
@@ -149,11 +177,12 @@ void type(int client_fd, char *key) {
 	}
 
 	int index = get_key_index(key);
-	time_t ttl = key_values[index].ttl;
-	if (index == -1 || ttl > 0 && currentMillis() > ttl) {
+	int index_stream = get_stream_index(key);
+	time_t ttl = keyvs[index].ttl;
+	if (index == -1 && index_stream == -1 || ttl > 0 && currentMillis() > ttl) {
 		send(client_fd, "+none\r\n", 7, 0);
 	} else {
-		send(client_fd, "+string\r\n", 9, 0);
+		send(client_fd, index == -1 ? "+stream\r\n" : "+string\r\n", 9, 0);
 	}
 }
 
@@ -242,6 +271,23 @@ void config(int client_fd, char *key, char *value) {
 	}
 }
 
+void keys(int client_fd, char *key) {
+	if (key == NULL) {
+		send(client_fd, "-Missing argument\r\n", 6, 0);
+		return;
+	}
+
+	if (key[0] == '*' && key[1] == '\0') {
+		char buffer[BUFFER_SIZE] = {0};
+		int len = sprintf(buffer, "*%d\r\n", keyvs_size);
+		fori(i, keyvs_size) {
+			len += sprintf(buffer + len, "$%lu\r\n%s\r\n", strlen(keyvs[i].key),
+						   keyvs[i].key);
+		}
+		send(client_fd, buffer, len, 0);
+	}
+}
+
 // Returns -> 0: success, 1: resend to replicas
 int evaluate_commands(char **commands, int num_args, int client_fd) {
 	char *command = to_lowercase(commands[0]);
@@ -275,28 +321,19 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	}
 	cmd_case("psync") {
 		psync(client_fd);
-		replicas_fd[replicas_size++] = client_fd;
+		repl_fd[repl_size++] = client_fd;
 	}
 	cmd_case("wait") {
-		int len = sprintf(key, ":%d\r\n", replicas_size);
+		int len = sprintf(key, ":%d\r\n", repl_size);
 		send(client_fd, key, len, 0);
 	}
 	cmd_case("config") {
 		key = to_lowercase(key);
 		config(client_fd, key, value);
 	}
-	cmd_case("keys") {
-		if (key[0] == '*' && key[1] == '\0') {
-			char buffer[BUFFER_SIZE] = {0};
-			int len = sprintf(buffer, "*%d\r\n", key_values_size);
-			fori(i, key_values_size) {
-				len += sprintf(buffer + len, "$%lu\r\n%s\r\n",
-							   strlen(key_values[i].key), key_values[i].key);
-			}
-			send(client_fd, buffer, len, 0);
-		}
-	}
+	cmd_case("keys") { keys(client_fd, key); }
 	cmd_case("type") { type(client_fd, key); }
+	cmd_case("xadd") {}
 
 	return 0;
 }
@@ -328,10 +365,10 @@ void *handle_client(void *args) {
 				}
 				int res = evaluate_commands(commands, num_args, client_fd);
 				if (res == 1) {
-					fori(i, replicas_size) {
-						if (replicas_fd[i] != client_fd) {
-							printf("Sending to replica %d\n", replicas_fd[i]);
-							send(replicas_fd[i], buffer, strlen(buffer), 0);
+					fori(i, repl_size) {
+						if (repl_fd[i] != client_fd) {
+							printf("Sending to replica %d\n", repl_fd[i]);
+							send(repl_fd[i], buffer, strlen(buffer), 0);
 						}
 					}
 				}
@@ -507,7 +544,7 @@ void read_rdb() {
 
 					set_key_value(key, value, NULL);
 					if (ttl != NULL) {
-						key_values[key_values_size - 1].ttl = (time_t)ttl;
+						keyvs[keyvs_size - 1].ttl = (time_t)ttl;
 					}
 					printf("Loaded key: %s\nValue: %s\nTTL: %ld\n", key, value,
 						   (time_t)ttl);
@@ -518,7 +555,7 @@ void read_rdb() {
 		}
 		fclose(file);
 
-		printf("Loaded %d keys from %s\n", key_values_size, filepath);
+		printf("Loaded %d keys from %s\n", keyvs_size, filepath);
 	} else {
 		printf("Starting with empty database\n");
 	}
@@ -627,9 +664,9 @@ int main(int argc, char const *argv[]) {
 		free(server.replicaof);
 	}
 
-	fori(i, key_values_size) {
-		free(key_values[i].key);
-		free(key_values[i].value);
+	fori(i, keyvs_size) {
+		free(keyvs[i].key);
+		free(keyvs[i].value);
 	}
 
 	close(server_fd);
