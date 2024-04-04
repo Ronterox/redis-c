@@ -33,7 +33,7 @@ typedef struct {
 } KeyValue;
 
 typedef struct {
-	int ms;
+	time_t ms;
 	int seq;
 } Sequence;
 
@@ -148,7 +148,7 @@ void parse_id(char *id, time_t *ms, int *seq) {
 	int index = strchr(id, '-') - id;
 	id[index] = '\0';
 
-	*ms = atoi(id);
+	*ms = strtoul(id, NULL, 10);
 	if (id[index + 1] == '*') {
 		*seq = next_sequence(*ms);
 		sprintf(id, "%ld-%d", *ms, *seq);
@@ -159,6 +159,11 @@ void parse_id(char *id, time_t *ms, int *seq) {
 }
 
 void set_stream(int client_fd, char *key, char *id, char **data, int dsize) {
+	if (id[0] == '*' && id[1] == '\0') {
+		time_t ms = currentMillis();
+		sprintf(id, "%ld-%d", ms, next_sequence(ms));
+	}
+
 	time_t ms;
 	int seq;
 	parse_id(id, &ms, &seq);
