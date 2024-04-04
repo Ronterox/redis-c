@@ -17,6 +17,7 @@
 
 #define fori(i, n) for (int i = 0; i < n; i++)
 #define is_str_equal(str1, str2) (strcmp(str1, str2) == 0)
+#define is_str_equaln(str1, str2, n) (strncmp(str1, str2, n) == 0)
 
 #define cmd_switch(str) if is_str_equal (command, str)
 #define cmd_case(str) else if is_str_equal (command, str)
@@ -39,9 +40,9 @@ typedef struct {
 
 typedef struct {
 	char *key;
-	char *id;
-	char *keys[10];
-	char *values[10];
+	char *id[10];
+	KeyValue keyvs[10];
+	Sequence id_seq;
 } Stream;
 
 typedef struct Server {
@@ -75,18 +76,21 @@ time_t currentMillis() {
 	return tp.tv_sec * 1000 + tp.tv_usec / 1000;
 }
 
-int get_index(char *key, void *arr, int size) {
-	fori(i, size) {
-		if is_str_equal (key, ((KeyValue *)arr)[i].key)
+int get_key_index(char *key) {
+	fori(i, keyvs_size) {
+		if is_str_equal (key, keyvs[i].key)
 			return i;
 	}
 	return -1;
 }
 
-int get_key_index(char *key) { return get_index(key, keyvs, keyvs_size); }
-
 int get_stream_index(char *key) {
-	return get_index(key, streams, streams_size);
+	int mslen = strchr(key, '-') - key;
+	fori(i, streams_size) {
+		if is_str_equaln (key, streams[i].key, mslen)
+			return i;
+	}
+	return -1;
 }
 
 char *parse_string(char *data) {
@@ -175,10 +179,12 @@ void set_stream(int client_fd, char *key, char *id, char **data, int dsize) {
 		return;
 	}
 
+	time_t ms_i;
+	int seq_i;
+	Stream *stream;
 	fori(i, streams_size) {
-		time_t ms_i;
-		int seq_i;
-		parse_id(streams[i].id, &ms_i, &seq_i);
+		stream = &streams[i];
+		parse_id(stream->id[stream->id_seq.seq], &ms_i, &seq_i);
 
 		if (ms < ms_i || ms == ms_i && seq <= seq_i) {
 			send(client_fd,
@@ -189,13 +195,17 @@ void set_stream(int client_fd, char *key, char *id, char **data, int dsize) {
 		}
 	}
 
-	streams[streams_size].key = strdup(key);
-	streams[streams_size].id = strdup(id);
+	int index = get_stream_index(key);
+	if (index == -1)
+		index = streams_size++;
+
+	stream = &streams[index];
+	stream->key = strdup(key);
+	stream->id[stream->id_seq.seq++] = strdup(id);
 	for (int i = 0; i < dsize - 3; i += 2) {
-		streams[streams_size].keys[i] = strdup(data[i]);
-		streams[streams_size].values[i] = strdup(data[i + 1]);
+		stream->keyvs[i].key = strdup(data[i]);
+		stream->keyvs[i].value = strdup(data[i + 1]);
 	}
-	streams_size++;
 
 	char buffer[BUFFER_SIZE] = {0};
 	int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(id), id);
@@ -402,6 +412,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	cmd_case("xadd") {
 		set_stream(client_fd, key, value, commands + 3, num_args);
 	}
+	cmd_case("xrange") {}
 
 	return 0;
 }
