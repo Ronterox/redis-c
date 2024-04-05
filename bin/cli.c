@@ -5,6 +5,33 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+char *parse_data(char *buffer) {
+	char *data;
+	int len;
+	switch (buffer[0]) {
+	case '+':
+	case '-':
+	case ':':
+		printf("%s\n", buffer);
+		break;
+	case '$':
+		data = strtok(buffer, "\r\n");
+		printf("\"%s\"\n", data);
+		break;
+	case '*':
+		len = buffer[1] - '0';
+		data = strtok(buffer, "\r\n");
+		for (int i = 0; i < len; i++) {
+			printf("data: %s\n", data);
+			data = parse_data(strtok(NULL, "\r\n"));
+		}
+		break;
+	default:
+		printf("Unknown response\n");
+	}
+	return data;
+}
+
 int main(int argc, char const *argv[]) {
 	int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd == -1) {
@@ -39,31 +66,7 @@ int main(int argc, char const *argv[]) {
 		perror("Failed to receive data");
 		return 1;
 	}
-
-	char *data;
-	switch (buffer[0]) {
-	case '+':
-	case '-':
-	case ':':
-		printf("%s\n", buffer);
-		break;
-	case '$':
-		strtok(buffer, "\r\n");
-		while ((data = strtok(NULL, "\r\n")) != NULL)
-			printf("\"%s\"\n", data);
-		break;
-	case '*':
-		len = buffer[1] - '0';
-		strtok(buffer, "\r\n");
-		for (int i = 0; i < len; i++) {
-			strtok(NULL, "\r\n");
-			data = strtok(NULL, "\r\n");
-			printf("\"%s\"\n", data);
-		}
-		break;
-	default:
-		printf("Unknown response\n");
-	}
+	parse_data(buffer);
 
 	close(sock_fd);
 	return 0;
