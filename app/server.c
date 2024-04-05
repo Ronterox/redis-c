@@ -428,11 +428,12 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		KeyValue *kv;
 
 		char buffer[BUFFER_SIZE] = {0};
-		int stm_elem_size = stream->id_seq.seq - 1;
+		int stm_elem_size = stream->id_seq.seq;
+		int diff = seq_end - seq_start;
 
-		int len = sprintf(buffer, "*%d\r\n", stm_elem_size);
-
-		for (int i = seq_start; i <= seq_end && i < stm_elem_size; i++) {
+		int len = sprintf(buffer, "*%d\r\n",
+						  diff > stm_elem_size ? stm_elem_size : diff);
+		for (int i = seq_start; i < seq_end && i < stm_elem_size; i++) {
 			len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*%d\r\n",
 						   strlen(stream->id[i]), stream->id[i],
 						   1 * 2); // For now Hardcoded keys * 2

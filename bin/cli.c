@@ -5,31 +5,43 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#define SPACES "          "
+
+int spaces = -1;
+
 char *parse_data(char *buffer) {
-	char *data;
-	int len;
-	switch (buffer[0]) {
+	int index, len;
+	switch (*buffer) {
 	case '+':
 	case '-':
 	case ':':
 		printf("%s\n", buffer);
 		break;
 	case '$':
-		data = strtok(buffer, "\r\n");
-		printf("\"%s\"\n", data);
+		len = 0;
+		buffer++;
+		while (*buffer != '\r') {
+			len = len * 10 + (*buffer - '0');
+			buffer++;
+		}
+		printf("%.*s\"%.*s\"\n", spaces, SPACES, len, buffer + 2);
+		buffer += len + 4;
 		break;
 	case '*':
 		len = buffer[1] - '0';
-		data = strtok(buffer, "\r\n");
+		buffer += 4;
+		spaces++;
+		printf("%.*s[\n", spaces, SPACES);
 		for (int i = 0; i < len; i++) {
-			printf("data: %s\n", data);
-			data = parse_data(strtok(NULL, "\r\n"));
+			buffer = parse_data(buffer);
 		}
+		printf("%.*s]\n", spaces, SPACES);
+		spaces--;
 		break;
 	default:
 		printf("Unknown response\n");
 	}
-	return data;
+	return buffer;
 }
 
 int main(int argc, char const *argv[]) {
@@ -66,6 +78,8 @@ int main(int argc, char const *argv[]) {
 		perror("Failed to receive data");
 		return 1;
 	}
+
+	// printf("Buffer %s", buffer);
 	parse_data(buffer);
 
 	close(sock_fd);
