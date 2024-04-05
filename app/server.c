@@ -412,7 +412,37 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	cmd_case("xadd") {
 		set_stream(client_fd, key, value, commands + 3, num_args);
 	}
-	cmd_case("xrange") {}
+	cmd_case("xrange") {
+		int index = get_stream_index(key);
+		if (index == -1) {
+			send(client_fd, "$-1\r\n", 5, 0);
+			return 0;
+		}
+
+		time_t ms;
+		int seq_start, seq_end;
+		parse_id(commands[2], &ms, &seq_start);
+		parse_id(commands[3], &ms, &seq_end);
+
+		Stream *stream = &streams[index];
+		KeyValue *kv;
+
+		char buffer[BUFFER_SIZE] = {0};
+		int len = sprintf(buffer, "*%d\r\n", stream->id_seq.seq - 1);
+
+		for (int i = seq_start; i <= seq_end; i++) {
+			len += sprintf(buffer, "*2\r\n$%lu\r\n%s\r\n*%d\r\n",
+						   strlen(stream->id[i]), stream->id[i],
+						   1 * 2); // For now Hardcoded keys * 2
+			fori(j, 1) {
+				kv = &stream->keyvs[j];
+				len += sprintf(buffer, "$%lu\r\n%s\r\n$%lu\r\n%s\r\n",
+							   strlen(kv->key), kv->key, strlen(kv->value),
+							   kv->value);
+			}
+		}
+		send(client_fd, buffer, len, 0);
+	}
 
 	return 0;
 }
