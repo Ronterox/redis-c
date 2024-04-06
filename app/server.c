@@ -516,9 +516,17 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 
 		int key_size = (num_args - 2) * 0.5;
 		int len = sprintf(buffer, "*%d\r\n", key_size);
+		int start_len = len;
+
 		fori(i, key_size) {
 			len += xread(buffer + len, commands[i], commands[i + key_size]);
 		}
+
+		if (len == start_len) {
+			send(client_fd, "$-1\r\n", 5, 0);
+			return 0;
+		}
+
 		send(client_fd, buffer, len, 0);
 	}
 
