@@ -505,8 +505,8 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	}
 	cmd_case("xread") {
 		if is_str_equal (key, "block") {
-			int wait = atoi(value);
-			usleep(wait);
+			int wait_ms = atoi(value);
+			usleep(wait_ms * 1000);
 			commands += 4;
 		} else {
 			commands += 2;
