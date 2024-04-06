@@ -431,7 +431,7 @@ int xread(char *buffer, char *key, char *start) {
 	parse_id(start, &ms, &seq_start);
 
 	Stream *stream = &streams[index];
-	seq_end = stream->id_seq.seq - 1;
+	seq_end = stream->id_seq.seq;
 
 	seq_start = seq_start == 0 ? 0 : seq_start - 1;
 
