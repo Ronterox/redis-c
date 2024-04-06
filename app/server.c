@@ -464,6 +464,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		char *end = commands[3];
 		xrange(client_fd, key, start, end);
 	}
+	cmd_case("xread") { xrange(client_fd, value, commands[3], "+"); }
 
 	return 0;
 }

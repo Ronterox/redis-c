@@ -14,7 +14,7 @@ test: cli.out
 	./cli.out xadd test 0-* foo bar
 	./cli.out xadd test 0-* foo bar
 	./cli.out xadd test 0-* foo bar
-	./cli.out xrange test 0-2 0-4
+	./cli.out xread streams test 0-0
 
 .PHONY: clean
 clean:
