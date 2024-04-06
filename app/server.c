@@ -201,11 +201,13 @@ void set_stream(int client_fd, char *key, char *id, char **data, int dsize) {
 
 	stream = &streams[index];
 	stream->key = strdup(key);
-	stream->id[stream->id_seq.seq++] = strdup(id);
-	for (int i = 0; i < dsize - 3; i += 2) {
-		stream->keyvs[i].key = strdup(data[i]);
-		stream->keyvs[i].value = strdup(data[i + 1]);
-	}
+
+	index = stream->id_seq.seq;
+	stream->id[index] = strdup(id);
+	stream->keyvs[index].key = strdup(data[0]);
+	stream->keyvs[index].value = strdup(data[1]);
+	stream->id_seq.seq++;
+	printf("Stream: %s\n", stream->key);
 
 	char buffer[BUFFER_SIZE] = {0};
 	int len = sprintf(buffer, "$%lu\r\n%s\r\n", strlen(id), id);
@@ -368,7 +370,7 @@ void xrange(int client_fd, char *key, char *start, char *end) {
 	int index = get_stream_index(key);
 	if (index == -1) {
 		send(client_fd, "$-1\r\n", 5, 0);
-		return 0;
+		return;
 	}
 
 	time_t ms;
@@ -381,10 +383,12 @@ void xrange(int client_fd, char *key, char *start, char *end) {
 
 	char buffer[BUFFER_SIZE] = {0};
 	int stm_elem_size = stream->id_seq.seq;
+	seq_start = seq_start == 0 ? 0 : seq_start - 1;
 	int diff = seq_end - seq_start;
 
 	int len =
 		sprintf(buffer, "*%d\r\n", diff > stm_elem_size ? stm_elem_size : diff);
+	printf("Len: %s\n", buffer);
 	for (int i = seq_start; i < seq_end && i < stm_elem_size; i++) {
 		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*%d\r\n",
 					   strlen(stream->id[i]), stream->id[i],
