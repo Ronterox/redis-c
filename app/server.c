@@ -433,7 +433,6 @@ int xread(char *buffer, char *key, char *start) {
 	Stream *stream = &streams[index];
 	seq_end = stream->id_seq.seq;
 
-	seq_start = seq_start == 0 ? 0 : seq_start - 1;
 	int diff = seq_end - seq_start;
 
 	KeyValue *kv;
