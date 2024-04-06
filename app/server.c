@@ -512,7 +512,10 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		int unused = 2;
 		if is_str_equal (key, "block") {
 			int wait_ms = atoi(value);
-			usleep(wait_ms * 1000);
+			if (wait_ms > 0)
+				usleep(wait_ms * 1000);
+			else
+				usleep(1000);
 			unused = 4;
 		}
 
