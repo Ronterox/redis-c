@@ -375,7 +375,11 @@ void xrange(int client_fd, char *key, char *start, char *end) {
 
 	time_t ms;
 	int seq_start, seq_end;
-	parse_id(start, &ms, &seq_start);
+	if (*start == '-') {
+		seq_start = 0;
+	} else {
+		parse_id(start, &ms, &seq_start);
+	}
 	parse_id(end, &ms, &seq_end);
 
 	Stream *stream = &streams[index];
@@ -388,7 +392,6 @@ void xrange(int client_fd, char *key, char *start, char *end) {
 
 	int len =
 		sprintf(buffer, "*%d\r\n", diff > stm_elem_size ? stm_elem_size : diff);
-	printf("Len: %s\n", buffer);
 	for (int i = seq_start; i < seq_end && i < stm_elem_size; i++) {
 		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*%d\r\n",
 					   strlen(stream->id[i]), stream->id[i],
@@ -400,8 +403,6 @@ void xrange(int client_fd, char *key, char *start, char *end) {
 						strlen(kv->key), kv->key, strlen(kv->value), kv->value);
 		}
 	}
-
-	printf("Buffer: %s\n", buffer);
 	send(client_fd, buffer, len, 0);
 }
 
