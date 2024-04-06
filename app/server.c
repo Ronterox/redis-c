@@ -431,15 +431,14 @@ int xread(char *buffer, char *key, char *start) {
 	parse_id(start, &ms, &seq_start);
 
 	Stream *stream = &streams[index];
-	seq_end = stream->id_seq.seq;
+	seq_end = stream->id_seq.seq - 1;
 
 	seq_start = seq_start == 0 ? 0 : seq_start - 1;
-	int diff = seq_end - seq_start;
 
 	KeyValue *kv;
 	int len = sprintf(buffer, "*2\r\n$%lu\r\n%s\r\n*%d\r\n", strlen(key), key,
-					  diff > seq_end ? seq_end : diff);
-	for (int i = seq_start; i < seq_end && i < seq_end; i++) {
+					  seq_end);
+	for (int i = seq_start; i < seq_end; i++) {
 		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*2\r\n",
 					   strlen(stream->id[i]), stream->id[i]);
 
@@ -517,9 +516,9 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		int key_size = (num_args - unused) * 0.5;
 		int len = sprintf(buffer, "*%d\r\n", key_size);
 
+		int read_len;
 		fori(i, key_size) {
-			int read_len =
-				xread(buffer + len, commands[i], commands[i + key_size]);
+			read_len = xread(buffer + len, commands[i], commands[i + key_size]);
 
 			if (read_len == 0) {
 				send(client_fd, "$-1\r\n", 5, 0);
