@@ -437,8 +437,8 @@ int xread(char *buffer, char *key, char *start) {
 
 	KeyValue *kv;
 	int len = sprintf(buffer, "*2\r\n$%lu\r\n%s\r\n*%d\r\n", strlen(key), key,
-					  seq_end);
-	for (int i = seq_start; i < seq_end; i++) {
+					  seq_end - 1);
+	for (int i = seq_start + 1; i < seq_end; i++) {
 		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*2\r\n",
 					   strlen(stream->id[i]), stream->id[i]);
 
