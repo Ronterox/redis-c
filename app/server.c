@@ -426,12 +426,20 @@ int xread(char *buffer, char *key, char *start) {
 	if (index == -1)
 		return 0;
 
+	Stream *stream = &streams[index];
 	time_t ms;
-	int seq_start, seq_end;
+	int seq_start, seq_end = stream->id_seq.seq;
 	parse_id(start, &ms, &seq_start);
 
-	Stream *stream = &streams[index];
-	seq_end = stream->id_seq.seq;
+	fori(i, seq_end) {
+		int seq;
+		parse_id(stream->id[i], &ms, &seq);
+		if (seq > seq_start) {
+			seq_start = i;
+			break;
+		}
+	}
+
 	int diff = seq_end - seq_start;
 
 	KeyValue *kv;

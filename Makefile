@@ -15,8 +15,8 @@ testblock: cli.out
 	./cli.out xadd test 0-2 foo bar
 
 testread: cli.out
-	./cli.out xadd "mango" "0-1" temperature 2
-	./cli.out xread streams mango 0-0
+	./cli.out xadd "mango" "0-2" temperature 2
+	./cli.out xread streams mango 0-1
 
 .PHONY: clean
 clean:
