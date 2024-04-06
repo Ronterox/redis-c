@@ -11,8 +11,10 @@ cli.out: clean
 
 test: cli.out
 	./cli.out xadd test 0-1 foo bar
-	./cli.out xread block 1000 streams test 0-1
+	./cli.out xread block 1000 streams test 0-1 &
+	# ./cli.out xread streams test 0-1
 	./cli.out xadd test 0-2 foo bar
+	# sleep 2
 
 .PHONY: clean
 clean:

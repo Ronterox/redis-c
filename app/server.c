@@ -504,17 +504,17 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		xrange(client_fd, key, start, end);
 	}
 	cmd_case("xread") {
+		int unused = 2;
 		if is_str_equal (key, "block") {
 			int wait_ms = atoi(value);
 			usleep(wait_ms * 1000);
-			commands += 4;
-		} else {
-			commands += 2;
+			unused = 4;
 		}
 
+		commands += unused;
 		char buffer[BUFFER_SIZE] = {0};
 
-		int key_size = (num_args - 2) * 0.5;
+		int key_size = (num_args - unused) * 0.5;
 		int len = sprintf(buffer, "*%d\r\n", key_size);
 
 		fori(i, key_size) {
