@@ -380,16 +380,21 @@ void xrange(int client_fd, char *key, char *start, char *end) {
 	} else {
 		parse_id(start, &ms, &seq_start);
 	}
-	parse_id(end, &ms, &seq_end);
 
 	Stream *stream = &streams[index];
 	KeyValue *kv;
 
-	char buffer[BUFFER_SIZE] = {0};
 	int stm_elem_size = stream->id_seq.seq;
+	if (*end == '+') {
+		seq_end = stm_elem_size;
+	} else {
+		parse_id(end, &ms, &seq_end);
+	}
+
 	seq_start = seq_start == 0 ? 0 : seq_start - 1;
 	int diff = seq_end - seq_start;
 
+	char buffer[BUFFER_SIZE] = {0};
 	int len =
 		sprintf(buffer, "*%d\r\n", diff > stm_elem_size ? stm_elem_size : diff);
 	for (int i = seq_start; i < seq_end && i < stm_elem_size; i++) {
