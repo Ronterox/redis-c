@@ -511,11 +511,29 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	cmd_case("xread") {
 		int unused = 2;
 		if is_str_equal (key, "block") {
+			if (*value == '0') {
+				int index = get_stream_index(commands[4]);
+				if (index != -1) {
+					Stream *stream = &streams[index];
+					int seq = stream->id_seq.seq;
+					while (1) {
+						sleep(1);
+						if (stream->id_seq.seq != seq) {
+							break;
+						}
+					}
+				} else {
+					while (1) {
+						sleep(1);
+						index = get_stream_index(commands[4]);
+						if (index != -1) {
+							break;
+						}
+					}
+				}
+			}
 			int wait_ms = atoi(value);
-			if (wait_ms > 0)
-				usleep(wait_ms * 1000);
-			else
-				usleep(1000);
+			usleep(wait_ms * 1000);
 			unused = 4;
 		}
 
