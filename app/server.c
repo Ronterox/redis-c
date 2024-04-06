@@ -441,7 +441,6 @@ int xread(char *buffer, char *key, char *start) {
 	}
 
 	int diff = seq_end - seq_start;
-
 	KeyValue *kv;
 	int len =
 		sprintf(buffer, "*2\r\n$%lu\r\n%s\r\n*%d\r\n", strlen(key), key, diff);
@@ -453,8 +452,7 @@ int xread(char *buffer, char *key, char *start) {
 		len += sprintf(buffer + len, "$%lu\r\n%s\r\n$%lu\r\n%s\r\n",
 					   strlen(kv->key), kv->key, strlen(kv->value), kv->value);
 	}
-	printf("Buffer: %s\n", buffer);
-	return len;
+	return diff > 0 ? len : 0;
 }
 
 // Returns -> 0: success, 1: resend to replicas

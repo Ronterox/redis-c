@@ -14,6 +14,12 @@ testblock: cli.out
 	./cli.out xread block 1000 streams test 0-1 &
 	./cli.out xadd test 0-2 foo bar
 
+testblockfail: cli.out
+	./cli.out xadd test 0-1 foo bar
+	./cli.out xread block 1000 streams test 0-1 &
+	sleep 2
+	./cli.out xadd test 0-2 foo bar
+
 testread: cli.out
 	./cli.out xadd "mango" "0-2" temperature 2
 	./cli.out xread streams mango 0-1
