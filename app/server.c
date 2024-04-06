@@ -429,7 +429,6 @@ int xread(char *buffer, char *key, char *start) {
 	time_t ms;
 	int seq_start, seq_end;
 	parse_id(start, &ms, &seq_start);
-	seq_start--;
 
 	Stream *stream = &streams[index];
 	seq_end = stream->id_seq.seq;
@@ -437,7 +436,7 @@ int xread(char *buffer, char *key, char *start) {
 	KeyValue *kv;
 	int len = sprintf(buffer, "*2\r\n$%lu\r\n%s\r\n*%d\r\n", strlen(key), key,
 					  seq_end - 1);
-	for (int i = seq_start + 1; i < seq_end; i++) {
+	for (int i = seq_start; i < seq_end; i++) {
 		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*2\r\n",
 					   strlen(stream->id[i]), stream->id[i]);
 
