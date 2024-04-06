@@ -76,6 +76,20 @@ time_t currentMillis() {
 	return tp.tv_sec * 1000 + tp.tv_usec / 1000;
 }
 
+int send_to_thread(void *func, void *args) {
+	pthread_t thread;
+	if (pthread_create(&thread, NULL, func, args) != 0) {
+		perror("pthread_create");
+		return 1;
+	}
+
+	if (pthread_detach(thread) != 0) {
+		perror("pthread_detach");
+		return 1;
+	}
+	return 0;
+}
+
 int get_key_index(char *key) {
 	fori(i, keyvs_size) {
 		if is_str_equal (key, keyvs[i].key)
@@ -490,7 +504,14 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		xrange(client_fd, key, start, end);
 	}
 	cmd_case("xread") {
-		commands += 2;
+		if is_str_equal (key, "block") {
+			int wait = atoi(value);
+			usleep(wait);
+			commands += 4;
+		} else {
+			commands += 2;
+		}
+
 		char buffer[BUFFER_SIZE] = {0};
 
 		int key_size = (num_args - 2) * 0.5;
@@ -563,20 +584,6 @@ int send_repl_hs(char *message, char *expected_response, int match_length) {
 		perror("Error during RECEIVING replication handshake");
 		printf("Expected: %s\n", expected_response);
 		printf("Received: %s\n", buffer);
-		return 1;
-	}
-	return 0;
-}
-
-int send_to_thread(void *func, void *args) {
-	pthread_t thread;
-	if (pthread_create(&thread, NULL, func, args) != 0) {
-		perror("pthread_create");
-		return 1;
-	}
-
-	if (pthread_detach(thread) != 0) {
-		perror("pthread_detach");
 		return 1;
 	}
 	return 0;
