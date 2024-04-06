@@ -429,11 +429,10 @@ int xread(char *buffer, char *key, char *start) {
 	time_t ms;
 	int seq_start, seq_end;
 	parse_id(start, &ms, &seq_start);
+	seq_start--;
 
 	Stream *stream = &streams[index];
 	seq_end = stream->id_seq.seq;
-
-	seq_start = seq_start == 0 ? 0 : seq_start - 1;
 
 	KeyValue *kv;
 	int len = sprintf(buffer, "*2\r\n$%lu\r\n%s\r\n*%d\r\n", strlen(key), key,
