@@ -411,12 +411,10 @@ void xrange(int client_fd, char *key, char *start, char *end) {
 	send(client_fd, buffer, len, 0);
 }
 
-void xread(int client_fd, char *key, char *start) {
+int xread(char *buffer, char *key, char *start) {
 	int index = get_stream_index(key);
-	if (index == -1) {
-		send(client_fd, "$-1\r\n", 5, 0);
-		return;
-	}
+	if (index == -1)
+		return 0;
 
 	time_t ms;
 	int seq_start, seq_end;
@@ -429,9 +427,8 @@ void xread(int client_fd, char *key, char *start) {
 	int diff = seq_end - seq_start;
 
 	KeyValue *kv;
-	char buffer[BUFFER_SIZE] = {0};
-	int len = sprintf(buffer, "*1\r\n*2\r\n$%lu\r\n%s\r\n*%d\r\n", strlen(key),
-					  key, diff > seq_end ? seq_end : diff);
+	int len = sprintf(buffer, "*2\r\n$%lu\r\n%s\r\n*%d\r\n", strlen(key), key,
+					  diff > seq_end ? seq_end : diff);
 	for (int i = seq_start; i < seq_end && i < seq_end; i++) {
 		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*%d\r\n",
 					   strlen(stream->id[i]), stream->id[i],
@@ -443,8 +440,9 @@ void xread(int client_fd, char *key, char *start) {
 						strlen(kv->key), kv->key, strlen(kv->value), kv->value);
 		}
 	}
-	send(client_fd, buffer, len, 0);
+	return len;
 }
+
 // Returns -> 0: success, 1: resend to replicas
 int evaluate_commands(char **commands, int num_args, int client_fd) {
 	char *command = to_lowercase(commands[0]);
@@ -498,7 +496,16 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		char *end = commands[3];
 		xrange(client_fd, key, start, end);
 	}
-	cmd_case("xread") { xread(client_fd, value, commands[3]); }
+	cmd_case("xread") {
+		int key_size = (num_args - 2) * 0.5;
+		commands += 2;
+		char buffer[BUFFER_SIZE] = {0};
+		int len = sprintf(buffer, "*%d\r\n", key_size);
+		fori(i, key_size) {
+			len += xread(buffer + len, commands[i], commands[i + key_size]);
+		}
+		send(client_fd, buffer, len, 0);
+	}
 
 	return 0;
 }
