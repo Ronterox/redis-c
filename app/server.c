@@ -398,15 +398,11 @@ void xrange(int client_fd, char *key, char *start, char *end) {
 	int len =
 		sprintf(buffer, "*%d\r\n", diff > stm_elem_size ? stm_elem_size : diff);
 	for (int i = seq_start; i < seq_end && i < stm_elem_size; i++) {
-		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*%d\r\n",
-					   strlen(stream->id[i]), stream->id[i],
-					   1 * 2); // For now Hardcoded keys * 2
-		fori(j, 1) {
-			kv = &stream->keyvs[j];
-			len +=
-				sprintf(buffer + len, "$%lu\r\n%s\r\n$%lu\r\n%s\r\n",
-						strlen(kv->key), kv->key, strlen(kv->value), kv->value);
-		}
+		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*2\r\n",
+					   strlen(stream->id[i]), stream->id[i]);
+		kv = &stream->keyvs[i];
+		len += sprintf(buffer + len, "$%lu\r\n%s\r\n$%lu\r\n%s\r\n",
+					   strlen(kv->key), kv->key, strlen(kv->value), kv->value);
 	}
 	send(client_fd, buffer, len, 0);
 }
@@ -430,15 +426,12 @@ int xread(char *buffer, char *key, char *start) {
 	int len = sprintf(buffer, "*2\r\n$%lu\r\n%s\r\n*%d\r\n", strlen(key), key,
 					  diff > seq_end ? seq_end : diff);
 	for (int i = seq_start; i < seq_end && i < seq_end; i++) {
-		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*%d\r\n",
-					   strlen(stream->id[i]), stream->id[i],
-					   1 * 2); // For now Hardcoded keys * 2
-		fori(j, 1) {
-			kv = &stream->keyvs[j];
-			len +=
-				sprintf(buffer + len, "$%lu\r\n%s\r\n$%lu\r\n%s\r\n",
-						strlen(kv->key), kv->key, strlen(kv->value), kv->value);
-		}
+		len += sprintf(buffer + len, "*2\r\n$%lu\r\n%s\r\n*2\r\n",
+					   strlen(stream->id[i]), stream->id[i]);
+
+		kv = &stream->keyvs[i];
+		len += sprintf(buffer + len, "$%lu\r\n%s\r\n$%lu\r\n%s\r\n",
+					   strlen(kv->key), kv->key, strlen(kv->value), kv->value);
 	}
 	return len;
 }
@@ -497,9 +490,10 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 		xrange(client_fd, key, start, end);
 	}
 	cmd_case("xread") {
-		int key_size = (num_args - 2) * 0.5;
 		commands += 2;
 		char buffer[BUFFER_SIZE] = {0};
+
+		int key_size = (num_args - 2) * 0.5;
 		int len = sprintf(buffer, "*%d\r\n", key_size);
 		fori(i, key_size) {
 			len += xread(buffer + len, commands[i], commands[i + key_size]);
