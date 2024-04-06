@@ -546,7 +546,7 @@ void *handle_client(void *args) {
 		}
 
 		if (buffer[0] == '\0')
-			continue;
+			break;
 
 		char *data = strtok(strdup(buffer), "\r\n");
 		do {
