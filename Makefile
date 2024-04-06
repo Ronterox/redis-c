@@ -10,10 +10,7 @@ cli.out: clean
 	gcc bin/*.c -o cli.out
 
 test: cli.out
-	./cli.out xadd test 0-* foo bar
-	./cli.out xadd test 0-* foo bar
-	./cli.out xadd test 0-* foo bar
-	./cli.out xadd test 0-* foo bar
+	./cli.out xadd test 0-1 foo bar
 	./cli.out xread streams test 0-0
 
 .PHONY: clean
