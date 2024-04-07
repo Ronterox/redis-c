@@ -22,10 +22,10 @@
 #define cmd_switch(str) if is_str_equal (command, str)
 #define cmd_case(str) else if is_str_equal (command, str)
 
-#define DATABASE_START '\xFE'
-#define EXPIRE_MS '\xFC'
-#define EXPIRE_SEC '\xFD'
-#define STRING '\x00'
+#define DATABASE_START 0xFE
+#define EXPIRE_MS 0xFC
+#define EXPIRE_SEC 0xFD
+#define STRING 0x00
 
 typedef struct {
 	char *key;
@@ -714,9 +714,9 @@ void read_rdb() {
 		fread(data, sizeof(char), 4, file);
 		printf("RDB Version: %s\n", data);
 
-		char byte;
+		unsigned char byte;
 		memset(data, 0, 5);
-		while (fread(&byte, sizeof(char), 1, file)) {
+		while (fread(&byte, sizeof(unsigned char), 1, file)) {
 			if (byte != DATABASE_START)
 				continue;
 
@@ -730,11 +730,11 @@ void read_rdb() {
 			printf("Expires: %d\n", expires);
 
 			int len;
-			char *ttl;
+			unsigned long long ttl;
 			fori(i, keys) {
 				// Clean memory because bits are not whole
 				memset(data, 0, 8);
-				len = 0;
+				len = ttl = 0;
 
 				// Start reading next byte
 				fread(&byte, sizeof(char), 1, file);
@@ -742,13 +742,8 @@ void read_rdb() {
 				short is_ms = byte == EXPIRE_MS;
 				if (is_ms || byte == EXPIRE_SEC) {
 					len = is_ms ? 8 : 4;
-					fread(data, sizeof(char), len, file);
-					data[len] = '\0';
-					ttl = strdup(data);
-
+					fread(&ttl, sizeof(char), len, file);
 					fread(&byte, sizeof(char), 1, file);
-				} else {
-					ttl = NULL;
 				}
 
 				if (byte == STRING) {
@@ -764,11 +759,11 @@ void read_rdb() {
 					fread(value, sizeof(char), len, file);
 
 					set_key_value(key, value, NULL);
-					if (ttl != NULL) {
+					if (ttl != 0) {
 						keyvs[keyvs_size - 1].ttl = (time_t)ttl;
 					}
 					printf("Loaded key: %s\nValue: %s\nTTL: %ld\n", key, value,
-						   ttl == NULL ? 0 : (time_t)ttl);
+						   (time_t)ttl);
 				} else {
 					printf("Ignoring value of type: %d\n", *data);
 				}
