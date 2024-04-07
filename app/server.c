@@ -518,18 +518,24 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 					int seq = stream->id_seq.seq;
 					while (1) {
 						sleep(1);
-						if (stream->id_seq.seq != seq) {
+						if (stream->id_seq.seq != seq)
 							break;
-						}
 					}
 				} else {
 					while (1) {
 						sleep(1);
 						index = get_stream_index(commands[4]);
-						if (index != -1) {
+						if (index != -1)
 							break;
-						}
 					}
+				}
+
+				if (*commands[5] == '$') {
+					time_t ms;
+					int seq;
+					Stream *stream = &streams[index];
+					parse_id(stream->id[stream->id_seq.seq - 1], &ms, &seq);
+					sprintf(commands[5], "%ld-%d", ms, seq - 1);
 				}
 			}
 			int wait_ms = atoi(value);
