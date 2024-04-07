@@ -743,6 +743,7 @@ void read_rdb() {
 				if (is_ms || byte == EXPIRE_SEC) {
 					len = is_ms ? 8 : 4;
 					fread(data, sizeof(char), len, file);
+					data[len] = '\0';
 					ttl = strdup(data);
 
 					fread(&byte, sizeof(char), 1, file);
