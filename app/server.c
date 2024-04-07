@@ -732,6 +732,11 @@ void read_rdb() {
 			int len;
 			char *ttl;
 			fori(i, keys) {
+				// Clean memory because bits are not whole
+				memset(data, 0, 8);
+				len = 0;
+
+				// Start reading next byte
 				fread(&byte, sizeof(char), 1, file);
 
 				short is_ms = byte == EXPIRE_MS;
@@ -762,7 +767,7 @@ void read_rdb() {
 						keyvs[keyvs_size - 1].ttl = (time_t)ttl;
 					}
 					printf("Loaded key: %s\nValue: %s\nTTL: %ld\n", key, value,
-						   (time_t)ttl);
+						   ttl == NULL ? 0 : (time_t)ttl);
 				} else {
 					printf("Ignoring value of type: %d\n", *data);
 				}
