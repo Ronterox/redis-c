@@ -493,6 +493,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	cmd_case("wait") {
 		int len = sprintf(key, ":%d\r\n", repl_size);
 		send(client_fd, key, len, 0);
+		fori(i, num_args) { printf("Command: %s\n", commands[i]); }
 	}
 	cmd_case("config") {
 		key = to_lowercase(key);
