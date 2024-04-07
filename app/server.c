@@ -764,7 +764,7 @@ void read_rdb() {
 					printf("Loaded key: %s\nValue: %s\nTTL: %ld\n", key, value,
 						   (time_t)ttl);
 				} else {
-					printf("Ignoring value of type: %d\n", data[0]);
+					printf("Ignoring value of type: %d\n", *data);
 				}
 			}
 		}
