@@ -571,7 +571,6 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 
 void *handle_client(void *args) {
 	int client_fd = *(int *)args;
-	int retries = 0;
 	printf("Client connected %d\n", client_fd);
 	while (1) {
 		char buffer[BUFFER_SIZE] = {0};
@@ -580,7 +579,7 @@ void *handle_client(void *args) {
 			break;
 		}
 
-		if (buffer[0] == '\0' && retries++ > 3)
+		if (buffer[0] == '\0')
 			break;
 
 		char *data = strtok(strdup(buffer), "\r\n");
