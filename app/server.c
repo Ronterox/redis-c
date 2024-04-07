@@ -492,7 +492,7 @@ int evaluate_commands(char **commands, int num_args, int client_fd) {
 	}
 	cmd_case("wait") {
 		char buffer[BUFFER_SIZE] = {0};
-		usleep(atoi(value) * 1000);
+		// usleep(atoi(value) * 1000);
 		int len = sprintf(buffer, ":%d\r\n", repl_size);
 		send(client_fd, buffer, len, 0);
 	}
